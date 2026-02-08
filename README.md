@@ -152,8 +152,18 @@ values ('<user_id>', 'admin', '<your_user_id>');
 ## セキュリティ上の注意
 
 - APIキーは **クライアントに露出させない**
-- `ADMIN_PATH_SECRET` は公開しない
+- `ADMIN_PATH_SECRET` は公開しない（画面・HTML に表示しない）
 - 管理操作はすべて Server 側で権限チェック
+- `robots.txt` で `/admin-` を Disallow しており、管理URLはクロール対象外
+
+---
+
+## 開発方針・ルール
+
+- Server Component では状態管理やイベント処理を行わない
+- Client Component に状態管理・イベント処理を集約する
+- サイト全体の配色は `global.css` の CSS変数で一元管理
+- 秘密情報（`.env.local`）は Git にコミットしない
 
 ---
 
