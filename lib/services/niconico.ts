@@ -63,8 +63,57 @@ function extractVideoId(link: string): string | undefined {
   return m ? m[1] : undefined;
 }
 
-function thumbnailUrl(videoId: string): string {
-  return `https://nicovideo.cdn.nimg.jp/thumbnails/${videoId}/${videoId}.M`;
+const THUMBINFO_API = "https://ext.nicovideo.jp/api/getthumbinfo/";
+
+function extractThumbnailUrlFromParsed(parsed: Record<string, unknown>): string | undefined {
+  const roots = ["nicovideo_thumb_response", "niconico_thumb_response"];
+  for (const rootKey of roots) {
+    const root = parsed[rootKey];
+    if (root && typeof root === "object") {
+      const thumb = (root as Record<string, unknown>).thumb;
+      if (thumb && typeof thumb === "object") {
+        const t = thumb as Record<string, unknown>;
+        const url = t.thumbnail_url ?? t.thumb_url;
+        if (typeof url === "string" && url.startsWith("http")) return url;
+      }
+    }
+  }
+  return undefined;
+}
+
+async function fetchThumbnailUrlUncached(videoId: string): Promise<string | undefined> {
+  try {
+    const res = await fetch(`${THUMBINFO_API}${encodeURIComponent(videoId)}`, {
+      next: { revalidate: 86400 },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; PersonalSite/1)" },
+    });
+    if (!res.ok) return undefined;
+    const xml = await res.text();
+    const parser = new XMLParser({ ignoreAttributes: true });
+    const parsed = parser.parse(xml) as Record<string, unknown>;
+    return extractThumbnailUrlFromParsed(parsed);
+  } catch {
+    return undefined;
+  }
+}
+
+function getThumbnailUrl(videoId: string): Promise<string | undefined> {
+  return unstable_cache(
+    () => fetchThumbnailUrlUncached(videoId),
+    ["niconico-thumb", videoId],
+    { revalidate: 86400 }
+  )();
+}
+
+async function enrichItemsWithThumbnails(items: NicoVideoItem[]): Promise<NicoVideoItem[]> {
+  const enriched = await Promise.all(
+    items.map(async (item) => {
+      if (!item.videoId) return item;
+      const thumb = await getThumbnailUrl(item.videoId);
+      return { ...item, thumbnailUrl: thumb ?? item.thumbnailUrl };
+    })
+  );
+  return enriched;
 }
 
 function pickStr(obj: Record<string, unknown>, ...keys: string[]): string {
@@ -84,7 +133,7 @@ function parseItem(raw: Record<string, unknown>): NicoVideoItem {
     title: pickStr(raw as Record<string, unknown>, "title", "Title"),
     url: link || "",
     publishedAt,
-    thumbnailUrl: videoId ? thumbnailUrl(videoId) : undefined,
+    thumbnailUrl: undefined,
     description: raw?.description != null ? String(raw.description).trim() : undefined,
   };
 }
@@ -126,7 +175,8 @@ async function getNotificationsUncached(): Promise<NiconicoNotifications> {
     const userRss = `https://www.nicovideo.jp/user/${userId}/video?rss=2.0&lang=ja-jp`;
     const xml = await fetchRss(userRss);
     const { items: all } = parseRss(xml);
-    posts.push(...all.slice(0, 5));
+    const top5 = await enrichItemsWithThumbnails(all.slice(0, 5));
+    posts.push(...top5);
   } catch (e) {
     console.error("Niconico user RSS:", e);
   }
@@ -151,13 +201,19 @@ async function getNotificationsUncached(): Promise<NiconicoNotifications> {
     }
   }
   updatesWithMeta.sort((a, b) => (b.addedAt > a.addedAt ? 1 : -1));
-  for (const u of updatesWithMeta.slice(0, 5)) {
-    mylistUpdates.push({
-      mylistId: u.mylistId,
-      mylistTitle: u.title,
-      addedAt: u.addedAt,
-      video: u.video,
-    });
+  const enrichedUpdates = await enrichItemsWithThumbnails(
+    updatesWithMeta.slice(0, 5).map((u) => u.video)
+  );
+  for (let i = 0; i < enrichedUpdates.length; i++) {
+    const u = updatesWithMeta[i];
+    if (u) {
+      mylistUpdates.push({
+        mylistId: u.mylistId,
+        mylistTitle: u.title,
+        addedAt: u.addedAt,
+        video: enrichedUpdates[i]!,
+      });
+    }
   }
 
   return { posts, mylistUpdates };
@@ -180,7 +236,8 @@ async function getUploadsUncached(): Promise<NiconicoUploadsResponse> {
   const userRss = `https://www.nicovideo.jp/user/${userId}/video?rss=2.0&lang=ja-jp`;
   const xml = await fetchRss(userRss);
   const { items } = parseRss(xml);
-  return { items: items.slice(0, UPLOADS_MAX) };
+  const enriched = await enrichItemsWithThumbnails(items.slice(0, UPLOADS_MAX));
+  return { items: enriched };
 }
 
 export async function getNiconicoUploads(): Promise<NiconicoUploadsResponse> {
@@ -203,11 +260,12 @@ async function getMylistsUncached(): Promise<NiconicoMylistsResponse> {
       const rssUrl = `https://www.nicovideo.jp/mylist/${mylistId}?rss=2.0&lang=ja-jp`;
       const xml = await fetchRss(rssUrl);
       const { items: videos, channelTitle } = parseRss(xml);
+      const enrichedVideos = await enrichItemsWithThumbnails(videos.slice(0, MYLIST_ITEMS_MAX));
       items.push({
         mylistId,
         title: channelTitle ?? `マイリスト ${mylistId}`,
         url: `https://www.nicovideo.jp/mylist/${mylistId}`,
-        items: videos.slice(0, MYLIST_ITEMS_MAX),
+        items: enrichedVideos,
       });
     } catch (e) {
       console.error("Niconico mylist RSS:", mylistId, e);
