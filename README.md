@@ -1,155 +1,187 @@
 # personal-website
 
-個人用ホームページ（Next.js + Supabase）。
+個人制作のポートフォリオ／作品紹介用Webサイトです。
 
-動画投稿（YouTube / ニコニコ）、個人開発（GitHub）の紹介と、
-コメント機能・管理者ダッシュボードを備えた個人ポータルサイトです。
+- YouTube・ニコニコ動画・GitHub など外部サービスと連携
+- コメント・通報・管理者機能を備えた個人HP
+- Supabase + Next.js によるフルスタック構成
+
+本リポジトリは **v1 完成版** を目標に、Sprint 単位で段階的に実装されています。
 
 ---
 
 ## 概要
 
-このリポジトリは、以下を目的とした **個人用Webサイト** のソースコードです。
+### 主な機能
 
-* プロフィール・スキルの公開
-* YouTube / ニコニコ動画の投稿活動の一覧表示
-* 個人開発（GitHubリポジトリ）の紹介
-* 各ページにコメント機能を設置
-* 管理者画面によるコメント管理・ページ編集・アクセス状況確認
+- **Home**
+  - 最新通知（YouTube / ニコニコ / コメント）
 
----
+- **Profile**
+  - プロフィール表示
+  - スキル一覧（登録順・大量時は「もっと見る」）
 
-## 主な機能
+- **YouTube**
+  - 投稿動画一覧
+  - プレイリスト一覧（外部遷移）
+  - 投稿／プレイリスト更新通知
 
-* Googleログイン（管理者用）
-* ゲスト / ログインユーザー対応のコメント機能
-* コメントへのリアクション機能
+- **ニコニコ動画**
+  - 投稿動画一覧（RSS）
+  - マイリスト一覧（3種）
+  - 投稿／マイリスト更新通知
 
-  * Good / Not Good
-  * 管理者のみの「ハート」リアクション
-* プロフィールアイコン管理（Supabase Storage）
-* 管理者ダッシュボード
+- **Dev（GitHub）**
+  - 公開リポジトリ一覧（通知なし）
 
-  * コメント管理（非表示・固定）
-  * ページ文言編集
-  * 訪問者カウントの確認
-* YouTube / ニコニコ / GitHub 連携（段階的に実装）
+- **コメント機能（全ページ共通）**
+  - ログインユーザー／ゲスト投稿対応
+  - Good / Not Good
+  - 管理者ハート
+  - 通報・自動非表示
+
+- **管理者画面（Admin）**
+  - Googleログイン（Supabase Auth）
+  - CMS（TinyMCE）によるページ編集
+  - コメント／通報管理
+  - 訪問者統計（PV / ユニーク）
 
 ---
 
 ## 技術スタック
 
-### フロントエンド
-
-* Next.js（App Router）
-* TypeScript
-* Tailwind CSS
-
-### バックエンド
-
-* Supabase
-
-  * Authentication（Google OAuth）
-  * PostgreSQL
-  * Storage
-
-### 開発環境
-
-* pnpm
-* Makefile
+| 区分           | 技術                                         |
+| -------------- | -------------------------------------------- |
+| フロントエンド | Next.js（App Router） / TypeScript           |
+| UI             | Tailwind CSS                                 |
+| 認証           | Supabase Auth（Google）                      |
+| DB / Storage   | Supabase                                     |
+| CMS            | TinyMCE                                      |
+| 外部連携       | YouTube Data API / ニコニコ RSS / GitHub API |
+| パッケージ管理 | pnpm                                         |
+| デプロイ       | Vercel                                       |
 
 ---
 
-## ディレクトリ構成（予定）
+## 開発環境
 
-```txt
-personal-website/
-├─ app/
-│  ├─ (public)/
-│  ├─ (admin)/
-│  └─ layout.tsx
-├─ components/
-│  ├─ comments/
-│  ├─ reactions/
-│  ├─ layout/
-│  └─ ui/
-├─ lib/
-│  ├─ supabase/
-│  └─ auth/
-├─ styles/
-│  └─ global.css
-├─ Makefile
-├─ .env.example
-└─ README.md
-```
+### 必要なもの
+
+- Node.js（推奨：LTS）
+- pnpm
+- Supabase アカウント
+- Google Cloud（OAuth / YouTube API）
+- GitHub アカウント
 
 ---
 
-## セットアップ（開発）
+## セットアップ
 
 ### 1. リポジトリをクローン
 
 ```bash
-git clone https://github.com/<your-name>/personal-website.git
-cd personal-website
+git clone https://github.com/<your-account>/watu0720-works.git
+cd watu0720-works
 ```
 
-### 2. パッケージのインストール
+### 2. 環境変数の設定
 
-```bash
-pnpm install
-```
-
-### 3. 環境変数の設定
-
-`.env.example` を参考に `.env.local` を作成してください。
-
-```bash
-cp .env.example .env.local
-```
-
-### 4. 開発サーバー起動
-
-```bash
-make dev
-```
-
----
-
-## 環境変数一覧
+`.env.local` を作成し、以下を設定してください。
 
 ```env
-NEXT_PUBLIC_SITE_URL=
-
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
-ADMIN_EMAIL_WHITELIST=
-ADMIN_PATH_SECRET=
+# Admin
+ADMIN_PATH_SECRET=admin-xxxxxxxx
+
+# TinyMCE
+NEXT_PUBLIC_TINYMCE_API_KEY=
+
+# YouTube
+YOUTUBE_API_KEY=
+YOUTUBE_CHANNEL_ID=
+
+# GitHub
+GITHUB_TOKEN=
+```
+
+※ `SUPABASE_SERVICE_ROLE_KEY` は **必ずサーバー側のみで使用**してください。
+
+---
+
+## 開発コマンド
+
+すべて `Makefile` 経由で実行します。
+
+```bash
+make setup      # 依存関係のインストール
+make dev        # 開発サーバー起動
+make lint       # ESLint
+make typecheck  # TypeScriptチェック
+make build      # ビルド
 ```
 
 ---
 
-## 開発方針・ルール
+## 管理者（Admin）について
 
-* Server Component では状態管理やイベント処理を行わない
-* Client Component に状態管理・イベント処理を集約する
-* サイト全体の配色は `global.css` の CSS変数で一元管理
-* 秘密情報（`.env.local`）は Git にコミットしない
+### 管理者画面へのアクセス
+
+- URL：`/{ADMIN_PATH_SECRET}`
+- 通常のナビゲーションには表示されません
+- 直接URLを入力してアクセスします
+
+### 管理者の追加方法
+
+1. 追加したいユーザーに **Googleログインで一度ログイン**してもらう
+2. Supabase の `auth.users` にレコードが作成される
+3. 以下SQLで管理者に追加
+
+```sql
+insert into public.admin_roles (user_id, role, created_by)
+values ('<user_id>', 'admin', '<your_user_id>');
+```
+
+※ 最後の管理者は削除できない仕様です。
 
 ---
 
-## 今後の予定
+## セキュリティ上の注意
 
-* YouTube / GitHub API 連携
-* ニコニコ動画の安定した取得方式の検討
-* コメント機能のスパム対策強化
-* 管理者画面のUI改善
+- APIキーは **クライアントに露出させない**
+- `ADMIN_PATH_SECRET` は公開しない
+- 管理操作はすべて Server 側で権限チェック
+
+---
+
+## デプロイ
+
+### Vercel
+
+1. 本リポジトリを Vercel に接続
+2. 環境変数を Vercel 側にも設定
+3. デプロイ
+
+### 独自ドメイン
+
+- ドメイン：`watu0720-works.com`
+- HTTPS 有効
+
+---
+
+## 今後の拡張予定
+
+- Home固定お知らせ
+- コメントNGワード管理
+- APIキー管理画面
+
+（Sprint 6 参照）
 
 ---
 
 ## ライセンス
 
-本リポジトリは個人用プロジェクトです。
-ライセンスは現時点では付与していません。
+- 個人制作物のため、無断転載・再利用はご遠慮ください。
