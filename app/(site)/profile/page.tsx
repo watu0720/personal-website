@@ -22,30 +22,45 @@ export default async function ProfilePage() {
     : null;
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10">
-      <div className="mb-8 flex flex-col items-center gap-6 sm:flex-row sm:items-start">
-        {avatarUrl ? (
-          <Image
-            src={avatarUrl}
-            alt="プロフィール"
-            width={120}
-            height={120}
-            className="rounded-2xl"
-            unoptimized
-          />
-        ) : (
-          <div className="h-[120px] w-[120px] rounded-2xl bg-muted" />
-        )}
-        <div>
-          <h1 className="mb-2 text-2xl font-bold text-foreground">{title}</h1>
-          {mainProfile?.bio && (
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {mainProfile.bio}
-            </p>
+    <div className="mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-10">
+      <div className="mb-8 overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <div
+          className="h-2 w-full bg-gradient-to-r from-red-500 via-orange-400 to-yellow-400"
+          aria-hidden
+        />
+        <div className="flex flex-col items-center gap-6 p-6 sm:flex-row sm:items-start sm:p-8">
+          {avatarUrl ? (
+            <Image
+              src={avatarUrl}
+              alt="プロフィール"
+              width={120}
+              height={120}
+              className="rounded-2xl"
+              unoptimized
+            />
+          ) : (
+            <div className="h-[120px] w-[120px] rounded-2xl bg-muted" />
           )}
+          <div className="min-w-0 flex-1">
+            <h1 className="mb-3 flex items-center gap-2 text-xl font-bold text-foreground md:text-2xl">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center md:h-9 md:w-9" aria-hidden>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </span>
+              {title}
+            </h1>
+            {mainProfile?.bio && (
+              <p className="mb-3 text-sm leading-relaxed text-muted-foreground">
+                {mainProfile.bio}
+              </p>
+            )}
+            {content?.body_html && (
+              <div className="prose prose-sm max-w-none text-foreground prose-p:my-2 prose-p:text-sm prose-p:leading-relaxed prose-p:text-muted-foreground">
+                <PageBody html={content.body_html} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      {content?.body_html && <PageBody html={content.body_html} />}
       <CommentSection pageKey="profile" />
     </div>
   );

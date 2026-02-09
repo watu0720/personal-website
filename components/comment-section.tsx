@@ -1,11 +1,37 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ThumbsUp, ThumbsDown, Heart, Flag, Send } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Heart, Flag, Send, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getOrCreateFingerprint } from "@/lib/fingerprint";
 import { shortenUrl } from "@/lib/repositories/comments";
 import { cn } from "@/lib/utils";
+
+const EDIT_TOKENS_KEY = "comment_edit_tokens";
+
+function getStoredEditToken(commentId: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(EDIT_TOKENS_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as Record<string, string>;
+    return obj[commentId] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function setStoredEditToken(commentId: string, token: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(EDIT_TOKENS_KEY);
+    const obj = (raw ? JSON.parse(raw) : {}) as Record<string, string>;
+    obj[commentId] = token;
+    localStorage.setItem(EDIT_TOKENS_KEY, JSON.stringify(obj));
+  } catch {
+    // ignore
+  }
+}
 
 const PAGE_KEYS = ["home", "profile", "youtube", "niconico", "dev"] as const;
 type PageKey = (typeof PAGE_KEYS)[number];
@@ -16,11 +42,14 @@ type CommentItem = {
   author_type: "guest" | "user";
   author_user_id: string | null;
   guest_name: string | null;
+  author_name: string | null;
+  author_avatar_url: string | null;
   body: string;
   is_hidden: boolean;
   hidden_reason: string | null;
   admin_heart: boolean;
   created_at: string;
+  edited_at: string | null;
   good_count: number;
   not_good_count: number;
   my_reaction: "good" | "not_good" | null;
@@ -30,7 +59,7 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
   const supabase = createClient();
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<{ id: string; email?: string; displayName?: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email?: string; displayName?: string; avatarUrl?: string } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [tab, setTab] = useState<"user" | "guest">("guest");
   const [guestName, setGuestName] = useState("");
@@ -40,6 +69,8 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
   const [reportingId, setReportingId] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState<"spam" | "abuse" | "other">("spam");
   const [reportMessage, setReportMessage] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingBody, setEditingBody] = useState("");
 
   const fingerprint = getOrCreateFingerprint();
 
@@ -59,15 +90,21 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
   useEffect(() => {
     (async () => {
       const { data: { user: u } } = await supabase.auth.getUser();
+      setTab(u ? "user" : "guest");
       if (u) {
+        const meta = u.user_metadata as Record<string, unknown> | undefined;
+        const nameFromMeta = (meta?.full_name ?? meta?.name) as string | undefined;
         const { data: profile } = await supabase.from("profiles").select("display_name").eq("user_id", u.id).single();
         const { data: adminRow } = await supabase.from("admin_roles").select("user_id").eq("user_id", u.id).eq("role", "admin").single();
         setUser({
           id: u.id,
           email: u.email ?? undefined,
-          displayName: (profile as { display_name: string | null } | null)?.display_name ?? undefined,
+          displayName: nameFromMeta?.trim() ?? (profile as { display_name: string | null } | null)?.display_name ?? undefined,
+          avatarUrl: (meta?.avatar_url as string) ?? undefined,
         });
         setIsAdmin(!!adminRow);
+      } else {
+        setUser(null);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- supabase client is stable
@@ -105,6 +142,9 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
         setError(data?.error ?? "投稿に失敗しました。");
         return;
       }
+      if (tab === "guest" && data.edit_token && data.id) {
+        setStoredEditToken(data.id, data.edit_token);
+      }
       setBody("");
       setGuestName("");
       fetchComments();
@@ -120,6 +160,48 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
       body: JSON.stringify({ reaction_type: type, ...(!user && fingerprint ? { fingerprint } : {}) }),
     });
     if (res.ok) fetchComments();
+  }
+
+  async function toggleAdminHeart(commentId: string) {
+    if (!isAdmin) return;
+    const res = await fetch(`/api/admin/comments/${commentId}/heart`, { method: "POST" });
+    if (res.ok) fetchComments();
+  }
+
+  function canEdit(c: CommentItem): boolean {
+    if (c.author_type === "user") {
+      return !!user && c.author_user_id === user.id;
+    }
+    if (c.author_type === "guest") {
+      return !!getStoredEditToken(c.id);
+    }
+    return false;
+  }
+
+  async function submitEdit(commentId: string, newBody: string, isGuest: boolean) {
+    const payload: { body: string; edit_token?: string } = { body: newBody.trim() };
+    if (isGuest) {
+      const token = getStoredEditToken(commentId);
+      if (!token) {
+        setError("編集トークンが見つかりません。");
+        return;
+      }
+      payload.edit_token = token;
+    }
+    const res = await fetch(`/api/comments/${commentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data?.error ?? "編集に失敗しました。");
+      return;
+    }
+    setEditingId(null);
+    setEditingBody("");
+    setError(null);
+    fetchComments();
   }
 
   async function submitReport(commentId: string) {
@@ -237,25 +319,93 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
               ) : (
                 <>
                   <div className="mb-2 flex items-center gap-2">
+                    {c.author_type === "user" && c.author_avatar_url && (
+                      <img
+                        src={c.author_avatar_url}
+                        alt=""
+                        className="h-8 w-8 shrink-0 rounded-full object-cover"
+                        width={32}
+                        height={32}
+                      />
+                    )}
                     <span className="font-medium text-foreground">
-                      {c.author_type === "user" ? "ユーザー" : (c.guest_name || "ゲスト")}
+                      {c.author_type === "user"
+                        ? (c.author_name || "ログインユーザー")
+                        : (c.guest_name || "ゲスト")}
                     </span>
                     {c.author_type === "guest" && (
                       <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">ゲスト</span>
                     )}
                     <span className="text-xs text-muted-foreground">
                       {new Date(c.created_at).toLocaleString("ja")}
+                      {c.edited_at && (
+                        <span className="ml-1 text-muted-foreground/80" title={new Date(c.edited_at).toLocaleString("ja")}>
+                          （編集済み）
+                        </span>
+                      )}
                     </span>
-                    {c.admin_heart && (
+                    {isAdmin ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleAdminHeart(c.id)}
+                        className={cn(
+                          "flex items-center gap-0.5 rounded p-0.5 transition-colors hover:bg-muted",
+                          c.admin_heart ? "text-primary" : "text-muted-foreground"
+                        )}
+                        title="管理者ハート"
+                        aria-label="管理者ハート"
+                      >
+                        <Heart className={cn("h-4 w-4", c.admin_heart && "fill-current")} />
+                      </button>
+                    ) : c.admin_heart ? (
                       <span className="flex items-center gap-0.5 text-primary" title="管理者ハート">
                         <Heart className="h-4 w-4 fill-current" />
                       </span>
-                    )}
+                    ) : null}
                   </div>
-                  <p className="mb-3 whitespace-pre-wrap text-sm text-foreground">
-                    {formatBody(c.body)}
-                  </p>
+                  {editingId === c.id ? (
+                    <div className="mb-3">
+                      <textarea
+                        aria-label="編集用本文"
+                        value={editingBody}
+                        onChange={(e) => setEditingBody(e.target.value)}
+                        className="mb-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                        rows={3}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => submitEdit(c.id, editingBody, c.author_type === "guest")}
+                          className="rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90"
+                        >
+                          保存
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setEditingId(null); setEditingBody(""); setError(null); }}
+                          className="rounded-lg border px-3 py-1.5 text-sm"
+                        >
+                          キャンセル
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mb-3 whitespace-pre-wrap text-sm text-foreground">
+                      {formatBody(c.body)}
+                    </p>
+                  )}
                   <div className="flex flex-wrap items-center gap-3">
+                    {canEdit(c) && editingId !== c.id && (
+                      <button
+                        type="button"
+                        onClick={() => { setEditingId(c.id); setEditingBody(c.body); setError(null); }}
+                        className="flex items-center gap-1 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-muted"
+                        aria-label="編集"
+                      >
+                        <Pencil className="h-4 w-4" />
+                        編集
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => toggleReaction(c.id, "good")}
@@ -281,7 +431,10 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setReportingId(reportingId === c.id ? null : c.id)}
+                      onClick={() => {
+                        setReportingId(reportingId === c.id ? null : c.id);
+                        if (reportingId !== c.id) setError(null);
+                      }}
                       className="flex items-center gap-1 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-muted"
                       aria-label="通報"
                     >
@@ -293,6 +446,7 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                     <div className="mt-3 rounded-lg border bg-muted/50 p-3">
                       <p className="mb-2 text-sm font-medium">通報理由</p>
                       <select
+                        aria-label="通報理由"
                         value={reportReason}
                         onChange={(e) => setReportReason(e.target.value as "spam" | "abuse" | "other")}
                         className="mb-2 rounded border bg-background px-2 py-1 text-sm"
@@ -308,6 +462,9 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                         className="mb-2 w-full rounded border bg-background px-2 py-1 text-sm"
                         rows={2}
                       />
+                      {error && (
+                        <p className="mb-2 text-sm text-destructive">{error}</p>
+                      )}
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -318,7 +475,7 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => { setReportingId(null); setReportMessage(""); }}
+                          onClick={() => { setReportingId(null); setReportMessage(""); setError(null); }}
                           className="rounded border px-3 py-1 text-sm"
                         >
                           キャンセル

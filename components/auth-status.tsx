@@ -57,10 +57,26 @@ export function AuthStatus() {
     );
   }
 
+  const meta = user.user_metadata as Record<string, unknown> | undefined;
+  const avatarUrl = meta?.avatar_url as string | undefined;
+  const fullName = (meta?.full_name ?? meta?.name) as string | undefined;
+  const displayName = fullName?.trim() || user.email?.split("@")[0] || "ログインユーザー";
+  const email = user.email ?? "";
+
   return (
     <div className="ml-2 flex items-center gap-2">
-      <span className="rounded-lg px-3 py-2 text-sm text-muted-foreground">
-        {user.email ?? user.id.slice(0, 8)}
+      {avatarUrl && (
+        <img
+          src={avatarUrl}
+          alt=""
+          className="h-6 w-6 shrink-0 rounded-full object-cover"
+          width={24}
+          height={24}
+        />
+      )}
+      <span className="flex flex-col items-end text-xs text-muted-foreground">
+        {displayName && <span className="font-medium text-foreground">{displayName}</span>}
+        {email && <span>{email}</span>}
       </span>
       <button
         type="button"

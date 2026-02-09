@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { getPageContent } from "@/lib/repositories/page-contents";
+import { ServiceIcon } from "@/components/ui/service-icon";
 import { PageBody } from "@/components/page-body";
 import { CommentSection } from "@/components/comment-section";
 import { getYouTubeNotifications, getYouTubeUploads, getYouTubePlaylists } from "@/lib/services/youtube";
 import { YouTubeNotificationsSection } from "@/components/youtube/notifications-section";
 import { YouTubeUploadsSection } from "@/components/youtube/uploads-section";
 import { YouTubePlaylistsSection } from "@/components/youtube/playlists-section";
+import { HomeExternalLinks } from "@/components/home/external-links";
 
 export const metadata: Metadata = {
   title: "YouTube | わっつーのHP",
@@ -22,19 +24,32 @@ export default async function YoutubePage() {
     getYouTubePlaylists().catch(() => ({ items: [], nextPageToken: undefined })),
   ]);
 
+  const yId = process.env.YOUTUBE_CHANNEL_ID;
+  const youtubeVideosUrl = yId ? `https://www.youtube.com/channel/${yId}/videos` : null;
+
+  const latestUploads = uploads.items.slice(0, 6);
+
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
-      <h1 className="mb-4 text-2xl font-bold text-foreground">{title}</h1>
+    <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-10">
+      <h1 className="mb-4 flex items-center gap-2 text-xl font-bold text-foreground md:text-2xl">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center md:h-9 md:w-9" aria-hidden>
+          <ServiceIcon type="youtube" size={32} className="h-6 w-6 md:h-7 md:w-7" />
+        </span>
+        {title}
+      </h1>
       {content?.body_html && (
         <div className="mb-8">
           <PageBody html={content.body_html} />
         </div>
       )}
 
+      <HomeExternalLinks youtubeUrl={yId ? `https://www.youtube.com/channel/${yId}` : null} />
+
       <YouTubeNotificationsSection data={notifications} />
       <YouTubeUploadsSection
-        initialItems={uploads.items}
-        initialNextPageToken={uploads.nextPageToken}
+        initialItems={latestUploads}
+        initialNextPageToken={undefined}
+        moreHref={youtubeVideosUrl ?? undefined}
       />
       <YouTubePlaylistsSection items={playlists.items} />
 

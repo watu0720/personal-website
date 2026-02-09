@@ -6,6 +6,8 @@ export type CommentRow = {
   author_type: "guest" | "user";
   author_user_id: string | null;
   guest_name: string | null;
+  author_name: string | null;
+  author_avatar_url: string | null;
   body: string;
   body_has_links: boolean;
   is_hidden: boolean;
@@ -13,6 +15,7 @@ export type CommentRow = {
   admin_heart: boolean;
   admin_heart_by: string | null;
   created_at: string;
+  edited_at: string | null;
 };
 
 export type CommentWithCounts = CommentRow & {

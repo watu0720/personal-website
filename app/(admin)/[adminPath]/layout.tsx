@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AdminGate } from "@/components/admin/admin-gate";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { StorageWarningBanner } from "@/components/admin/storage-warning-banner";
 
 export default async function AdminLayout({
   children,
@@ -37,9 +38,12 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <AdminSidebar adminPath={adminPath} />
-      <div className="min-w-0 flex-1">{children}</div>
+    <div className="flex min-h-screen flex-col bg-background">
+      <StorageWarningBanner adminPath={adminPath} />
+      <div className="flex min-h-0 flex-1">
+        <AdminSidebar adminPath={adminPath} />
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
     </div>
   );
 }
