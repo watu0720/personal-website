@@ -9,6 +9,7 @@ import { HomeChangelogSection } from "@/components/home/changelog-section";
 import { HomeExternalLinks } from "@/components/home/external-links";
 import { PageBody } from "@/components/page-body";
 import { CommentSection } from "@/components/comment-section";
+import { AnimatedSection } from "@/components/animated-section";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -35,24 +36,34 @@ export default async function HomePage() {
         subtitle={undefined}
       />
       {content?.body_html && (
-        <div className="mb-10">
+        <AnimatedSection className="mb-10">
           <PageBody html={content.body_html} />
-        </div>
+        </AnimatedSection>
       )}
-      <HomeNotificationsSection
-        items={notifications}
-        youtubeVideosUrl={youtubeVideosUrl}
-        niconicoVideosUrl={niconicoVideosUrl}
-      />
-      <HomeChangelogSection initialItems={changelog} />
-      <HomeExternalLinks
-        youtubeUrl={externalLinks.youtubeUrl}
-        niconicoUrl={externalLinks.niconicoUrl}
-        githubUrl={externalLinks.githubUrl}
-        showIcons
-      />
-      <HomeNavCards />
-      <CommentSection pageKey="home" />
+      <AnimatedSection>
+        <HomeNotificationsSection
+          items={notifications}
+          youtubeVideosUrl={youtubeVideosUrl}
+          niconicoVideosUrl={niconicoVideosUrl}
+        />
+      </AnimatedSection>
+      <AnimatedSection>
+        <HomeChangelogSection initialItems={changelog} />
+      </AnimatedSection>
+      <AnimatedSection>
+        <HomeExternalLinks
+          youtubeUrl={externalLinks.youtubeUrl}
+          niconicoUrl={externalLinks.niconicoUrl}
+          githubUrl={externalLinks.githubUrl}
+          showIcons
+        />
+      </AnimatedSection>
+      <AnimatedSection>
+        <HomeNavCards />
+      </AnimatedSection>
+      <AnimatedSection>
+        <CommentSection pageKey="home" />
+      </AnimatedSection>
     </div>
   );
 }

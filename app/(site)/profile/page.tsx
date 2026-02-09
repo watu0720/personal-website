@@ -5,6 +5,8 @@ import { getMainProfile } from "@/lib/repositories/profiles";
 import { getPublicAssetUrl } from "@/lib/storage-url";
 import { PageBody } from "@/components/page-body";
 import { CommentSection } from "@/components/comment-section";
+import { ProfileHeroCard } from "@/components/profile-hero-card";
+import { AnimatedSection } from "@/components/animated-section";
 
 export const metadata: Metadata = {
   title: "プロフィール | わっつーのHP",
@@ -23,7 +25,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-10">
-      <div className="mb-8 overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <ProfileHeroCard>
         <div
           className="h-2 w-full bg-gradient-to-r from-red-500 via-orange-400 to-yellow-400"
           aria-hidden
@@ -60,8 +62,10 @@ export default async function ProfilePage() {
             )}
           </div>
         </div>
-      </div>
-      <CommentSection pageKey="profile" />
+      </ProfileHeroCard>
+      <AnimatedSection>
+        <CommentSection pageKey="profile" />
+      </AnimatedSection>
     </div>
   );
 }

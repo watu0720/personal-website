@@ -2,12 +2,15 @@ import React from "react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { ScrollToTop } from "@/components/scroll-to-top";
+import { PageTransition } from "@/components/page-transition";
 
 export function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="flex-1">{children}</main>
+      <main className="flex-1">
+        <PageTransition>{children}</PageTransition>
+      </main>
       <SiteFooter />
       <ScrollToTop />
     </div>

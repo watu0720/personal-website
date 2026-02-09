@@ -35,7 +35,7 @@ export function SiteHeader() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`btn-motion rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   active
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -89,7 +89,7 @@ export function SiteHeader() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setOpen(false)}
-                  className={`rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                  className={`btn-motion rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                     active
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted"

@@ -1,4 +1,8 @@
+"use client";
+
 import Image from "next/image";
+import { motion } from "framer-motion";
+import { heroStaggerContainer, staggerContainer, staggerItem, transitionPresets } from "@/lib/animations";
 
 type HomeHeroProps = {
   headerImageUrl?: string | null;
@@ -13,8 +17,17 @@ export function HomeHero({
 }: HomeHeroProps) {
   const imgSrc = headerImageUrl || "/placeholder.svg";
   return (
-    <section className="mb-10 overflow-hidden rounded-2xl border bg-card animate-in">
-      <div className="relative h-48 w-full sm:h-64">
+    <motion.section
+      className="mb-10 overflow-hidden rounded-2xl border bg-card"
+      variants={heroStaggerContainer}
+      initial="initial"
+      animate="animate"
+    >
+      <motion.div
+        variants={staggerItem}
+        transition={transitionPresets.normal}
+        className="relative h-48 w-full sm:h-64"
+      >
         <Image
           src={imgSrc}
           alt="ヘッダー"
@@ -23,15 +36,28 @@ export function HomeHero({
           priority
           unoptimized={imgSrc.startsWith("http")}
         />
-      </div>
-      <div className="p-6">
-        <h1 className="mb-2 text-2xl font-bold text-foreground text-balance">
+      </motion.div>
+      <motion.div
+        variants={staggerContainer}
+        initial="initial"
+        animate="animate"
+        className="p-6"
+      >
+        <motion.h1
+          variants={staggerItem}
+          transition={transitionPresets.normal}
+          className="mb-2 text-2xl font-bold text-foreground text-balance"
+        >
           {title}
-        </h1>
-        <p className="text-sm leading-relaxed text-muted-foreground">
+        </motion.h1>
+        <motion.p
+          variants={staggerItem}
+          transition={transitionPresets.normal}
+          className="text-sm leading-relaxed text-muted-foreground"
+        >
           {subtitle}
-        </p>
-      </div>
-    </section>
+        </motion.p>
+      </motion.div>
+    </motion.section>
   );
 }
