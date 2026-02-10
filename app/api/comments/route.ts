@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { checkRateLimit, getClientId } from "@/lib/rate-limit";
+import { hashEditToken } from "@/lib/edit-token";
 import {
   isValidPageKey,
   checkBodyLinks,
@@ -83,6 +84,8 @@ export async function POST(req: NextRequest) {
   }
 
   let author_user_id: string | null = null;
+  let author_name: string | null = null;
+  let author_avatar_url: string | null = null;
   if (author_type === "user") {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -93,6 +96,10 @@ export async function POST(req: NextRequest) {
       );
     }
     author_user_id = user.id;
+    const meta = user.user_metadata as Record<string, unknown> | undefined;
+    const name = (meta?.full_name ?? meta?.name ?? user.email) as string | undefined;
+    author_name = name?.trim() ?? null;
+    author_avatar_url = (meta?.avatar_url as string)?.trim() || null;
   } else {
     if (!guest_name?.trim()) {
       return NextResponse.json(
@@ -103,6 +110,13 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createServiceRoleClient();
+  let edit_token_hash: string | null = null;
+  let edit_token_plain: string | null = null;
+  if (author_type === "guest") {
+    edit_token_plain = crypto.randomUUID();
+    edit_token_hash = hashEditToken(edit_token_plain);
+  }
+
   const { data: comment, error } = await admin
     .from("comments")
     .insert({
@@ -110,10 +124,13 @@ export async function POST(req: NextRequest) {
       author_type,
       author_user_id: author_type === "user" ? author_user_id : null,
       guest_name: author_type === "guest" ? guest_name!.trim() : null,
+      author_name: author_type === "user" ? author_name : null,
+      author_avatar_url: author_type === "user" ? author_avatar_url : null,
       body: body.trim(),
       body_has_links: linkCheck.hasLinks,
       is_hidden: false,
       hidden_reason: null,
+      edit_token_hash: author_type === "guest" ? edit_token_hash : null,
     })
     .select()
     .single();
@@ -121,5 +138,9 @@ export async function POST(req: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json(comment);
+  const out = { ...comment } as Record<string, unknown>;
+  if (author_type === "guest" && edit_token_plain) {
+    out.edit_token = edit_token_plain;
+  }
+  return NextResponse.json(out);
 }

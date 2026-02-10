@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Image, MessageSquare, Flag, ScrollText, BarChart3, ExternalLink } from "lucide-react";
+import { LayoutDashboard, FileText, Image, MessageSquare, Flag, ScrollText, BarChart3, ListTodo, HardDrive, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -13,6 +13,8 @@ const NAV = [
   { label: "コメント管理", href: "/comments", icon: MessageSquare },
   { label: "通報管理", href: "/reports", icon: Flag },
   { label: "操作ログ", href: "/audit-logs", icon: ScrollText },
+  { label: "改訂履歴", href: "/changelog", icon: ListTodo },
+  { label: "ストレージ整理", href: "/storage", icon: HardDrive },
 ] as const;
 
 type AdminSidebarProps = {

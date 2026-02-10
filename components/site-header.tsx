@@ -8,11 +8,11 @@ import { useTheme } from "next-themes";
 import { AuthStatus } from "@/components/auth-status";
 
 const NAV = [
-  { label: "Home", href: "/" },
-  { label: "Profile", href: "/profile" },
+  { label: "ホーム", href: "/" },
+  { label: "プロフィール", href: "/profile" },
   { label: "YouTube", href: "/youtube" },
-  { label: "Niconico", href: "/niconico" },
-  { label: "Dev", href: "/dev" },
+  { label: "ニコニコ", href: "/niconico" },
+  { label: "開発", href: "/dev" },
 ];
 
 export function SiteHeader() {

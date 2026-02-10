@@ -1,6 +1,6 @@
 "use client";
 
-import DOMPurify from "isomorphic-dompurify";
+import { sanitizeRichText } from "@/lib/sanitize";
 
 type PageBodyProps = {
   html: string;
@@ -11,15 +11,7 @@ type PageBodyProps = {
  * Renders sanitized HTML (from TinyMCE). Pre/code kept readable.
  */
 export function PageBody({ html, className = "" }: PageBodyProps) {
-  const sanitized = DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: [
-      "p", "br", "strong", "em", "u", "s",
-      "h2", "h3", "h4", "ul", "ol", "li",
-      "blockquote", "code", "pre", "a", "span",
-    ],
-    ALLOWED_ATTR: ["href", "target", "rel", "class"],
-    ADD_ATTR: ["target"],
-  });
+  const sanitized = sanitizeRichText(html);
 
   return (
     <div

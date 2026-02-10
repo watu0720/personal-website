@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { VideoItem } from "@/lib/services/youtube";
 
@@ -19,9 +20,11 @@ function formatDate(iso: string) {
 type Props = {
   initialItems: VideoItem[];
   initialNextPageToken?: string;
+  /** When set, show "もっと見る" as link to this href instead of load-more button. */
+  moreHref?: string;
 };
 
-export function YouTubeUploadsSection({ initialItems, initialNextPageToken }: Props) {
+export function YouTubeUploadsSection({ initialItems, initialNextPageToken, moreHref }: Props) {
   const [items, setItems] = useState<VideoItem[]>(initialItems);
   const [nextPageToken, setNextPageToken] = useState<string | undefined>(initialNextPageToken);
   const [loading, setLoading] = useState(false);
@@ -70,7 +73,27 @@ export function YouTubeUploadsSection({ initialItems, initialNextPageToken }: Pr
           </a>
         ))}
       </div>
-      {nextPageToken && (
+      {moreHref ? (
+        <div className="mt-4 text-center">
+          {moreHref.startsWith("http") ? (
+            <a
+              href={moreHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block rounded-lg border bg-card px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              もっと見る
+            </a>
+          ) : (
+            <Link
+              href={moreHref}
+              className="inline-block rounded-lg border bg-card px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              もっと見る
+            </Link>
+          )}
+        </div>
+      ) : nextPageToken ? (
         <div className="mt-4 text-center">
           <button
             type="button"
@@ -81,7 +104,7 @@ export function YouTubeUploadsSection({ initialItems, initialNextPageToken }: Pr
             {loading ? "読み込み中…" : "もっと見る"}
           </button>
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

@@ -1,21 +1,43 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
+
+const ImageCropModal = dynamic(
+  () =>
+    import("@/components/admin/image-crop-modal").then((m) => m.ImageCropModal),
+  { ssr: false }
+);
+
+type CropState = {
+  open: boolean;
+  imageSrc: string;
+  cropType: "profile" | "header";
+  fileName: string;
+};
 
 export default function AdminImagesPage() {
   const supabase = createClient();
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const [crop, setCrop] = useState<CropState>({
+    open: false,
+    imageSrc: "",
+    cropType: "profile",
+    fileName: "",
+  });
   const profileInputRef = useRef<HTMLInputElement>(null);
   const headerInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleUpload(
-    e: React.ChangeEvent<HTMLInputElement>,
-    uploadType: "profile" | "header"
-  ) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const closeCropModal = useCallback(() => {
+    if (crop.imageSrc) URL.revokeObjectURL(crop.imageSrc);
+    setCrop((prev) => ({ ...prev, open: false, imageSrc: "" }));
+    profileInputRef.current && (profileInputRef.current.value = "");
+    headerInputRef.current && (headerInputRef.current.value = "");
+  }, [crop.imageSrc]);
+
+  async function doUpload(file: File, uploadType: "profile" | "header") {
     const { data: sess } = await supabase.auth.getSession();
     const token = sess.session?.access_token;
     if (!token) {
@@ -46,8 +68,28 @@ export default function AdminImagesPage() {
       setMessage({ type: "error", text: "アップロードに失敗しました" });
     } finally {
       setUploading(false);
-      e.target.value = "";
     }
+  }
+
+  function handleFileSelect(
+    e: React.ChangeEvent<HTMLInputElement>,
+    uploadType: "profile" | "header"
+  ) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const imageSrc = URL.createObjectURL(file);
+    setCrop({
+      open: true,
+      imageSrc,
+      cropType: uploadType,
+      fileName: file.name.replace(/\.[^.]+$/, ".jpg") || "image.jpg",
+    });
+  }
+
+  async function handleCropConfirm(blob: Blob) {
+    const file = new File([blob], crop.fileName, { type: blob.type });
+    closeCropModal();
+    await doUpload(file, crop.cropType);
   }
 
   return (
@@ -76,8 +118,10 @@ export default function AdminImagesPage() {
             type="file"
             accept=".png,.gif,.jpg,.jpeg,.webp,image/png,image/gif,image/jpeg,image/webp"
             className="hidden"
-            onChange={(e) => handleUpload(e, "profile")}
+            onChange={(e) => handleFileSelect(e, "profile")}
             disabled={uploading}
+            aria-label="プロフィール画像を選択"
+            title="プロフィール画像を選択"
           />
           <button
             type="button"
@@ -99,8 +143,10 @@ export default function AdminImagesPage() {
             type="file"
             accept=".png,.gif,.jpg,.jpeg,.webp,image/png,image/gif,image/jpeg,image/webp"
             className="hidden"
-            onChange={(e) => handleUpload(e, "header")}
+            onChange={(e) => handleFileSelect(e, "header")}
             disabled={uploading}
+            aria-label="ヘッダー画像を選択"
+            title="ヘッダー画像を選択"
           />
           <button
             type="button"
@@ -112,6 +158,14 @@ export default function AdminImagesPage() {
           </button>
         </section>
       </div>
+
+      <ImageCropModal
+        open={crop.open}
+        imageSrc={crop.imageSrc}
+        cropType={crop.cropType}
+        onConfirm={handleCropConfirm}
+        onCancel={closeCropModal}
+      />
     </div>
   );
 }

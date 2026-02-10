@@ -35,7 +35,7 @@ export function NiconicoMylistsSection({ items }: Props) {
               </a>
             </div>
             <ul className="flex-1 overflow-auto p-2">
-              {m.items.slice(0, 12).map((v, i) => (
+              {m.items.slice(0, 5).map((v, i) => (
                 <li key={v.url || i} className="border-b border-transparent py-1 last:border-0">
                   <a
                     href={v.url}
