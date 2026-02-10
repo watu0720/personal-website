@@ -14,7 +14,10 @@ export const metadata: Metadata = {
   description: "YouTube投稿動画一覧",
 };
 
-export default async function YoutubePage() {
+export default async function YoutubePage(props: any) {
+  const searchParams = props?.searchParams ?? {};
+  const rawQuery = typeof searchParams.q === "string" ? searchParams.q : "";
+  const query = rawQuery.trim();
   const content = await getPageContent("youtube");
   const title = content?.title ?? "YouTube";
 
@@ -31,6 +34,12 @@ export default async function YoutubePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-10">
+      {query && (
+        <p className="mb-4 text-sm text-muted-foreground">
+          これらのキーワードがハイライトされています：
+          <span className="font-semibold">{query}</span>
+        </p>
+      )}
       <h1 className="mb-4 flex items-center gap-2 text-xl font-bold text-foreground md:text-2xl">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center md:h-9 md:w-9" aria-hidden>
           <ServiceIcon type="youtube" size={32} className="h-6 w-6 md:h-7 md:w-7" />

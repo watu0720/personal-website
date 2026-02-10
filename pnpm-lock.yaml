@@ -29,6 +29,9 @@ importers:
       lucide-react:
         specifier: ^0.544.0
         version: 0.544.0(react@19.2.4)
+      mark.js:
+        specifier: ^8.11.1
+        version: 8.11.1
       next:
         specifier: 15.1.0
         version: 15.1.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1418,6 +1421,9 @@ packages:
     resolution: {integrity: sha512-t5tS44bqd825zAW45UQxpG2CvcC4urOwn2TrwSH8u+MjeE+1NnWl6QqeQ/6NdjMqdOygyiT9p3Ev0p1NJykxjw==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  mark.js@8.11.1:
+    resolution: {integrity: sha512-1I+1qpDt4idfgLQG+BNWmrqku+7/2bi5nLf4YwF8y8zXvmfiTBY3PV3ZibfrjBueCByROpuBjLLFCajqkgYoLQ==}
 
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
@@ -3447,6 +3453,8 @@ snapshots:
   lucide-react@0.544.0(react@19.2.4):
     dependencies:
       react: 19.2.4
+
+  mark.js@8.11.1: {}
 
   math-intrinsics@1.1.0: {}
 

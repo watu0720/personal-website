@@ -11,7 +11,10 @@ import { PageBody } from "@/components/page-body";
 import { CommentSection } from "@/components/comment-section";
 import { AnimatedSection } from "@/components/animated-section";
 
-export default async function HomePage() {
+export default async function HomePage(props: any) {
+  const searchParams = props?.searchParams ?? {};
+  const rawQuery = typeof searchParams.q === "string" ? searchParams.q : "";
+  const query = rawQuery.trim();
   const supabase = await createClient();
   const [content, notifications, changelog] = await Promise.all([
     getPageContent("home"),
@@ -30,6 +33,12 @@ export default async function HomePage() {
   const niconicoVideosUrl = nId ? `https://www.nicovideo.jp/user/${nId}/video` : null;
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-10">
+      {query && (
+        <p className="mb-4 text-sm text-muted-foreground">
+          これらのキーワードがハイライトされています：
+          <span className="font-semibold">{query}</span>
+        </p>
+      )}
       <HomeHero
         headerImageUrl={content?.header_image_url}
         title={content?.title || undefined}

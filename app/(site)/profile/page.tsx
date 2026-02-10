@@ -13,7 +13,10 @@ export const metadata: Metadata = {
   description: "わっつーの自己紹介・スキル・リンク集",
 };
 
-export default async function ProfilePage() {
+export default async function ProfilePage(props: any) {
+  const searchParams = props?.searchParams ?? {};
+  const rawQuery = typeof searchParams.q === "string" ? searchParams.q : "";
+  const query = rawQuery.trim();
   const [content, mainProfile] = await Promise.all([
     getPageContent("profile"),
     getMainProfile(),
@@ -25,6 +28,12 @@ export default async function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-10">
+      {query && (
+        <p className="mb-4 text-sm text-muted-foreground">
+          これらのキーワードがハイライトされています：
+          <span className="font-semibold">{query}</span>
+        </p>
+      )}
       <ProfileHeroCard>
         <div
           className="h-2 w-full bg-gradient-to-r from-red-500 via-orange-400 to-yellow-400"

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { ThumbsUp, ThumbsDown, Heart, Flag, Send, Pencil } from "lucide-react";
@@ -8,6 +10,7 @@ import { staggerContainer, staggerItem, transitionPresets } from "@/lib/animatio
 import { getOrCreateFingerprint } from "@/lib/fingerprint";
 import { shortenUrl } from "@/lib/repositories/comments";
 import { cn } from "@/lib/utils";
+import { SearchHighlightContainer } from "@/components/search-highlight";
 
 const EDIT_TOKENS_KEY = "comment_edit_tokens";
 
@@ -73,15 +76,50 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
   const [reportMessage, setReportMessage] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingBody, setEditingBody] = useState("");
+  const [hasLog, setHasLog] = useState(false);
+  const [reportedIds, setReportedIds] = useState<string[]>([]);
 
   const fingerprint = getOrCreateFingerprint();
+  const searchParams = useSearchParams();
+  const highlightQuery = searchParams.get("q") ?? undefined;
+  const highlightMode =
+    (searchParams.get("mode") === "word" ? "word" : "partial") as
+      | "partial"
+      | "word";
 
   const fetchComments = useCallback(async () => {
-    const res = await fetch(`/api/comments?page_key=${encodeURIComponent(pageKey)}`, {
-      headers: fingerprint ? { "X-Fingerprint": fingerprint } : {},
-    });
+    const res = await fetch(
+      `/api/comments?page_key=${encodeURIComponent(pageKey)}&limit=21`,
+      {
+        headers: fingerprint ? { "X-Fingerprint": fingerprint } : {},
+      }
+    );
     const data = await res.json();
-    if (Array.isArray(data)) setComments(data);
+    if (Array.isArray(data)) {
+      // 21件以上のときのみコメントログボタンを表示
+      setHasLog(data.length > 20);
+      const visible = data.slice(0, 20) as CommentItem[];
+      setComments(visible);
+
+      // 通報済みコメントの取得（現在の閲覧者のみ）
+      const ids = visible.map((c) => c.id);
+      if (ids.length > 0) {
+        const params = new URLSearchParams({
+          comment_ids: ids.join(","),
+        });
+        const statusRes = await fetch(`/api/reports?${params.toString()}`, {
+          headers: fingerprint ? { "X-Fingerprint": fingerprint } : {},
+        });
+        if (statusRes.ok) {
+          const json = (await statusRes.json()) as { reportedIds?: string[] };
+          setReportedIds(Array.isArray(json.reportedIds) ? json.reportedIds : []);
+        } else {
+          setReportedIds([]);
+        }
+      } else {
+        setReportedIds([]);
+      }
+    }
     setLoading(false);
   }, [pageKey, fingerprint]);
 
@@ -252,7 +290,17 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
 
   return (
     <section className="mt-10 border-t pt-8">
-      <h2 className="mb-4 text-lg font-bold text-foreground">コメント</h2>
+      <div className="mb-4 flex items-center gap-3">
+        <h2 className="text-lg font-bold text-foreground">コメント</h2>
+        {hasLog && (
+          <Link
+            href={`/comments/${pageKey}`}
+            className="text-sm text-muted-foreground underline underline-offset-2 hover:text-primary"
+          >
+            コメントログへ
+          </Link>
+        )}
+      </div>
 
       <div className="mb-4 flex gap-2">
         <button
@@ -313,13 +361,16 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
       {loading ? (
         <p className="text-sm text-muted-foreground">読み込み中...</p>
       ) : (
-        <motion.ul
-          className="space-y-4"
-          variants={staggerContainer}
-          initial="initial"
-          animate="animate"
-        >
-          {comments.map((c) => (
+        <SearchHighlightContainer query={highlightQuery} mode={highlightMode}>
+          <motion.ul
+            className="space-y-4"
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+          >
+          {comments.map((c) => {
+            const isReportedByMe = reportedIds.includes(c.id);
+            return (
             <motion.li
               key={c.id}
               variants={staggerItem}
@@ -401,6 +452,15 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                         </button>
                       </div>
                     </div>
+                  ) : isReportedByMe ? (
+                    <details className="mb-3 rounded-lg border border-dashed border-destructive/40 bg-muted/40 p-3 text-sm">
+                      <summary className="cursor-pointer select-none text-xs font-medium text-destructive">
+                        通報済みのコメントです（クリックして本文を表示）
+                      </summary>
+                      <div className="mt-2 whitespace-pre-wrap text-sm text-foreground">
+                        {formatBody(c.body)}
+                      </div>
+                    </details>
                   ) : (
                     <p className="mb-3 whitespace-pre-wrap text-sm text-foreground">
                       {formatBody(c.body)}
@@ -444,14 +504,19 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                     <button
                       type="button"
                       onClick={() => {
+                        if (isReportedByMe) return;
                         setReportingId(reportingId === c.id ? null : c.id);
                         if (reportingId !== c.id) setError(null);
                       }}
-                      className="flex items-center gap-1 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-muted"
+                      className={cn(
+                        "flex items-center gap-1 rounded px-2 py-1 text-sm text-muted-foreground",
+                        isReportedByMe ? "cursor-default opacity-70" : "hover:bg-muted"
+                      )}
+                      disabled={isReportedByMe}
                       aria-label="通報"
                     >
                       <Flag className="h-4 w-4" />
-                      通報
+                      {isReportedByMe ? "通報済み" : "通報"}
                     </button>
                   </div>
                   {reportingId === c.id && (
@@ -498,8 +563,9 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                 </>
               )}
             </motion.li>
-          ))}
+          );})}
         </motion.ul>
+        </SearchHighlightContainer>
       )}
       {!loading && comments.length === 0 && (
         <p className="text-sm text-muted-foreground">まだコメントはありません。</p>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Menu, X, Sun, Moon } from "lucide-react";
@@ -19,16 +20,26 @@ export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
+  const [search, setSearch] = useState("");
+
+  const handleSearchSubmit = () => {
+    const q = search.trim();
+    if (!q) return;
+    const params = new URLSearchParams({ q, mode: "partial" });
+    router.push(`/search?${params.toString()}`);
+    setOpen(false);
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-md">
       <div className="h-1 w-full bg-primary" />
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-6 py-3">
         <Link href="/" className="text-lg font-bold text-foreground">
           わっつーのHP
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden gap-2 md:flex md:flex-wrap md:items-center">
           {NAV.map((item) => {
             const active = pathname === item.href;
             return (
@@ -46,6 +57,25 @@ export function SiteHeader() {
             );
           })}
           <AuthStatus />
+          <div className="flex items-center gap-1">
+            <input
+              type="search"
+              placeholder="サイト内検索"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSearchSubmit();
+              }}
+              className="w-32 rounded-lg border border-input bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary md:w-40"
+            />
+            <button
+              type="button"
+              onClick={handleSearchSubmit}
+              className="btn-motion rounded-lg bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              検索
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

@@ -23,8 +23,32 @@ export async function GET(req: NextRequest) {
   if (!pageKey || !isValidPageKey(pageKey)) {
     return NextResponse.json({ error: "Invalid page_key" }, { status: 400 });
   }
+
+  const limitParam = req.nextUrl.searchParams.get("limit");
+  const pageParam = req.nextUrl.searchParams.get("page");
+  const withTotal = req.nextUrl.searchParams.get("with_total") === "1";
+  const limit = limitParam ? Math.max(1, Math.min(500, Number(limitParam) || 0)) : undefined;
+  const page = pageParam ? Math.max(1, Number(pageParam) || 1) : 1;
+
   const supabase = await createClient();
-  const rows = await getCommentsForPage(supabase, pageKey, { forAdmin: false });
+  let baseQuery = supabase
+    .from("comments")
+    .select("*", { count: withTotal ? "exact" : undefined })
+    .eq("page_key", pageKey)
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false });
+
+  if (limit) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    baseQuery = baseQuery.range(from, to);
+  }
+
+  const { data: rowsData, count } = await baseQuery;
+  const rows = (rowsData ?? []) as Awaited<
+    ReturnType<typeof getCommentsForPage>
+  >;
+
   const commentIds = rows.map((c) => c.id);
   const counts = await getReactionCounts(supabase, commentIds);
 
@@ -48,6 +72,18 @@ export async function GET(req: NextRequest) {
     not_good_count: counts[c.id]?.not_good ?? 0,
     my_reaction: myReactions[c.id] ?? null,
   }));
+
+  if (withTotal && limit) {
+    const total = count ?? list.length;
+    return NextResponse.json({
+      items: list,
+      total,
+      page,
+      pageSize: limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    });
+  }
+
   return NextResponse.json(list);
 }
 
