@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
 import { ThumbsUp, ThumbsDown, Heart, Flag, Send, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { staggerContainer, staggerItem, transitionPresets } from "@/lib/animations";
 import { getOrCreateFingerprint } from "@/lib/fingerprint";
 import { shortenUrl } from "@/lib/repositories/comments";
 import { cn } from "@/lib/utils";
@@ -300,7 +302,7 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
             type="button"
             onClick={submitComment}
             disabled={submitting}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="btn-motion flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:transform-none"
           >
             <Send className="h-4 w-4" />
             {submitting ? "送信中..." : "送信"}
@@ -311,9 +313,19 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
       {loading ? (
         <p className="text-sm text-muted-foreground">読み込み中...</p>
       ) : (
-        <ul className="space-y-4">
+        <motion.ul
+          className="space-y-4"
+          variants={staggerContainer}
+          initial="initial"
+          animate="animate"
+        >
           {comments.map((c) => (
-            <li key={c.id} className="rounded-xl border bg-card p-4">
+            <motion.li
+              key={c.id}
+              variants={staggerItem}
+              transition={transitionPresets.normal}
+              className="rounded-xl border bg-card p-4"
+            >
               {c.hidden_reason === "deleted" ? (
                 <p className="text-sm text-muted-foreground">削除されました</p>
               ) : (
@@ -485,9 +497,9 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                   )}
                 </>
               )}
-            </li>
+            </motion.li>
           ))}
-        </ul>
+        </motion.ul>
       )}
       {!loading && comments.length === 0 && (
         <p className="text-sm text-muted-foreground">まだコメントはありません。</p>

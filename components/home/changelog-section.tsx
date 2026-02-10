@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { PageBody } from "@/components/page-body";
+import { staggerContainer, staggerItem, transitionPresets } from "@/lib/animations";
 
 type ChangelogItem = {
   id: string;
@@ -44,9 +46,19 @@ export function HomeChangelogSection({ initialItems }: Props) {
   return (
     <section className="mb-10">
       <h2 className="mb-4 text-xl font-semibold text-foreground">改訂履歴</h2>
-      <ul className="flex flex-col gap-3">
+      <motion.ul
+        className="flex flex-col gap-3"
+        variants={staggerContainer}
+        initial="initial"
+        animate="animate"
+      >
         {items.map((item) => (
-          <li key={item.id} className="rounded-xl border bg-card p-4">
+          <motion.li
+            key={item.id}
+            variants={staggerItem}
+            transition={transitionPresets.normal}
+            className="rounded-xl border bg-card p-4"
+          >
             <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
               <time dateTime={item.published_at}>{formatDate(item.published_at)}</time>
             </div>
@@ -54,9 +66,9 @@ export function HomeChangelogSection({ initialItems }: Props) {
             <div className="prose prose-sm mt-2 max-w-none text-foreground">
               <PageBody html={item.body_html} />
             </div>
-          </li>
+          </motion.li>
         ))}
-      </ul>
+      </motion.ul>
       <button
         type="button"
         onClick={() => setModalOpen(true)}

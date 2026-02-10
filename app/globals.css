@@ -86,3 +86,24 @@
 .animate-slide-up {
   animation: slide-up 0.3s ease-out both;
 }
+
+/* Phase 1.4: ボタン・CTA 用ホバー／アクティブ（設計書） */
+@layer components {
+  .btn-motion {
+    @apply transition-transform duration-150 ease-out;
+  }
+  .btn-motion:hover {
+    transform: scale(1.02);
+  }
+  .btn-motion:active {
+    transform: scale(0.98);
+  }
+
+  /* Phase 3.1: フッター等リンクのホバーで下線表示 */
+  .link-hover {
+    @apply transition-colors duration-150;
+  }
+  .link-hover:hover {
+    @apply underline;
+  }
+}

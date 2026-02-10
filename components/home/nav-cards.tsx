@@ -44,7 +44,7 @@ export function HomeNavCards() {
           <Link
             key={p.href}
             href={p.href}
-            className="group flex items-center gap-4 rounded-xl border bg-card p-4 transition-shadow hover:shadow-md"
+            className="group btn-motion flex items-center gap-4 rounded-xl border bg-card p-4 transition-shadow hover:shadow-md"
           >
             <div
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${p.iconBg ?? ""} ${p.iconBg ? "text-white" : ""}`}
