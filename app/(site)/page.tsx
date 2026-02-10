@@ -12,8 +12,13 @@ import { CommentSection } from "@/components/comment-section";
 import { AnimatedSection } from "@/components/animated-section";
 
 export default async function HomePage(props: any) {
-  const searchParams = props?.searchParams ?? {};
-  const rawQuery = typeof searchParams.q === "string" ? searchParams.q : "";
+  const rawSearchParams = props?.searchParams;
+  const resolvedSearchParams =
+    rawSearchParams && typeof rawSearchParams.then === "function"
+      ? await rawSearchParams
+      : rawSearchParams ?? {};
+  const rawQuery =
+    typeof resolvedSearchParams.q === "string" ? resolvedSearchParams.q : "";
   const query = rawQuery.trim();
   const supabase = await createClient();
   const [content, notifications, changelog] = await Promise.all([

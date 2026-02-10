@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { ThumbsUp, ThumbsDown, Heart, Flag, Send, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -78,6 +78,7 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
   const [editingBody, setEditingBody] = useState("");
   const [hasLog, setHasLog] = useState(false);
   const [reportedIds, setReportedIds] = useState<string[]>([]);
+  const fetchVersionRef = useRef(0);
 
   const fingerprint = getOrCreateFingerprint();
   const searchParams = useSearchParams();
@@ -88,13 +89,19 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
       | "word";
 
   const fetchComments = useCallback(async () => {
+    const version = ++fetchVersionRef.current;
     const res = await fetch(
       `/api/comments?page_key=${encodeURIComponent(pageKey)}&limit=21`,
       {
+        cache: "no-store",
         headers: fingerprint ? { "X-Fingerprint": fingerprint } : {},
       }
     );
     const data = await res.json();
+    if (fetchVersionRef.current !== version) {
+      // もっと新しいリクエスト結果があるので破棄
+      return;
+    }
     if (Array.isArray(data)) {
       // 21件以上のときのみコメントログボタンを表示
       setHasLog(data.length > 20);
@@ -108,6 +115,7 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
           comment_ids: ids.join(","),
         });
         const statusRes = await fetch(`/api/reports?${params.toString()}`, {
+          cache: "no-store",
           headers: fingerprint ? { "X-Fingerprint": fingerprint } : {},
         });
         if (statusRes.ok) {
@@ -185,9 +193,37 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
       if (tab === "guest" && data.edit_token && data.id) {
         setStoredEditToken(data.id, data.edit_token);
       }
+       // サーバー側で保存されたコメントをもとに、即座に一覧へ反映（楽観的更新）
+      const createdAt =
+        typeof data.created_at === "string"
+          ? data.created_at
+          : new Date().toISOString();
+      const newComment: CommentItem = {
+        id: data.id as string,
+        page_key: pageKey,
+        author_type: tab,
+        author_user_id: tab === "user" ? (user?.id ?? null) : null,
+        guest_name: tab === "guest" ? guestName.trim() : null,
+        author_name:
+          tab === "user"
+            ? ((user?.displayName ||
+                user?.email?.split("@")[0] ||
+                "ログインユーザー") as string)
+            : null,
+        author_avatar_url: tab === "user" ? user?.avatarUrl ?? null : null,
+        body: bodyTrim,
+        is_hidden: false,
+        hidden_reason: null,
+        admin_heart: false,
+        created_at: createdAt,
+        edited_at: null,
+        good_count: 0,
+        not_good_count: 0,
+        my_reaction: null,
+      };
+      setComments((prev) => [newComment, ...prev].slice(0, 20));
       setBody("");
       setGuestName("");
-      fetchComments();
     } finally {
       setSubmitting(false);
     }

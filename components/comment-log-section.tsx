@@ -132,6 +132,7 @@ export function CommentLogSection({ pageKey, label, initialPage, query, mode }: 
       params.set("limit", "100");
       params.set("with_total", "1");
       const res = await fetch(`/api/comments?${params.toString()}`, {
+        cache: "no-store",
         headers: fingerprint ? { "X-Fingerprint": fingerprint } : {},
       });
       const data = (await res.json()) as ApiResponse | CommentItem[];
@@ -159,6 +160,7 @@ export function CommentLogSection({ pageKey, label, initialPage, query, mode }: 
           comment_ids: ids.join(","),
         });
         const statusRes = await fetch(`/api/reports?${statusParams.toString()}`, {
+          cache: "no-store",
           headers: fingerprint ? { "X-Fingerprint": fingerprint } : {},
         });
         if (statusRes.ok) {

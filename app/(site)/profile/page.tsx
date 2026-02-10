@@ -14,8 +14,13 @@ export const metadata: Metadata = {
 };
 
 export default async function ProfilePage(props: any) {
-  const searchParams = props?.searchParams ?? {};
-  const rawQuery = typeof searchParams.q === "string" ? searchParams.q : "";
+  const rawSearchParams = props?.searchParams;
+  const resolvedSearchParams =
+    rawSearchParams && typeof rawSearchParams.then === "function"
+      ? await rawSearchParams
+      : rawSearchParams ?? {};
+  const rawQuery =
+    typeof resolvedSearchParams.q === "string" ? resolvedSearchParams.q : "";
   const query = rawQuery.trim();
   const [content, mainProfile] = await Promise.all([
     getPageContent("profile"),
