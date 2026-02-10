@@ -37,33 +37,50 @@ const pages = [
 
 export function HomeNavCards() {
   return (
-    <section>
-      <h2 className="mb-4 text-lg font-bold text-foreground">ページ一覧</h2>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {pages.map((p) => (
+    <section className="mb-12">
+      <div className="mb-6 flex items-center gap-3">
+        <h2 className="text-xl font-bold text-foreground">ページ一覧</h2>
+        <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {pages.map((p, index) => (
           <Link
             key={p.href}
             href={p.href}
-            className="group btn-motion flex items-center gap-4 rounded-xl border bg-card p-4 transition-shadow hover:shadow-md"
+            className="group btn-motion relative overflow-hidden rounded-2xl border bg-gradient-to-br from-card to-card/80 p-6 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/20"
           >
-            <div
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${p.iconBg ?? ""} ${p.iconBg ? "text-white" : ""}`}
-            >
-              {p.iconKind === "user" ? (
-                <User className="h-5 w-5" />
-              ) : (
-                <span className="flex h-6 w-6 items-center justify-center [&>img]:h-6 [&>img]:w-6">
-                  <ServiceIcon type={p.iconKind} size={24} />
-                </span>
-              )}
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-1 text-sm font-semibold text-foreground">
-                {p.label}
-                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:translate-x-1" />
+            {/* 背景装飾 */}
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            <div className="absolute -top-10 -right-10 h-20 w-20 rounded-full bg-primary/10 blur-2xl transition-all duration-300 group-hover:bg-primary/20" />
+            
+            <div className="relative z-10 flex items-center gap-4">
+              <div
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
+                  p.iconBg 
+                    ? `${p.iconBg} text-white group-hover:scale-110 group-hover:shadow-lg` 
+                    : "bg-muted group-hover:bg-primary/10 group-hover:scale-110"
+                }`}
+              >
+                {p.iconKind === "user" ? (
+                  <User className="h-6 w-6 transition-transform duration-300 group-hover:scale-110" />
+                ) : (
+                  <span className="flex h-7 w-7 items-center justify-center [&>img]:h-7 [&>img]:w-7 transition-transform duration-300 group-hover:scale-110">
+                    <ServiceIcon type={p.iconKind} size={28} />
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">{p.description}</p>
+              
+              <div className="flex-1">
+                <div className="flex items-center gap-2 text-base font-semibold text-foreground mb-1">
+                  {p.label}
+                  <ArrowRight className="h-4 w-4 text-muted-foreground transition-all duration-300 group-hover:translate-x-1 group-hover:text-primary" />
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">{p.description}</p>
+              </div>
             </div>
+            
+            {/* ホバー時のボーダーグロー効果 */}
+            <div className="absolute inset-0 rounded-2xl border border-primary/0 transition-all duration-300 group-hover:border-primary/30" />
           </Link>
         ))}
       </div>

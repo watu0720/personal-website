@@ -11,6 +11,7 @@ import { getOrCreateFingerprint } from "@/lib/fingerprint";
 import { shortenUrl } from "@/lib/repositories/comments";
 import { cn } from "@/lib/utils";
 import { SearchHighlightContainer } from "@/components/search-highlight";
+import { pulseElement } from "@/lib/motion/commentPulse";
 
 const EDIT_TOKENS_KEY = "comment_edit_tokens";
 
@@ -78,7 +79,9 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
   const [editingBody, setEditingBody] = useState("");
   const [hasLog, setHasLog] = useState(false);
   const [reportedIds, setReportedIds] = useState<string[]>([]);
+  const [pulseTargetId, setPulseTargetId] = useState<string | null>(null);
   const fetchVersionRef = useRef(0);
+  const cardToPulseRef = useRef<HTMLLIElement>(null);
 
   const fingerprint = getOrCreateFingerprint();
   const searchParams = useSearchParams();
@@ -158,6 +161,13 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- supabase client is stable
   }, []);
 
+  useEffect(() => {
+    if (pulseTargetId && cardToPulseRef.current) {
+      pulseElement(cardToPulseRef.current);
+      setPulseTargetId(null);
+    }
+  }, [pulseTargetId, comments]);
+
   async function submitComment() {
     const bodyTrim = body.trim();
     if (!bodyTrim) {
@@ -224,6 +234,7 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
       setComments((prev) => [newComment, ...prev].slice(0, 20));
       setBody("");
       setGuestName("");
+      setPulseTargetId(data.id as string);
     } finally {
       setSubmitting(false);
     }
@@ -277,7 +288,8 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
     setEditingId(null);
     setEditingBody("");
     setError(null);
-    fetchComments();
+    await fetchComments();
+    setPulseTargetId(commentId);
   }
 
   async function submitReport(commentId: string) {
@@ -409,6 +421,7 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
             return (
             <motion.li
               key={c.id}
+              ref={c.id === pulseTargetId ? cardToPulseRef : undefined}
               variants={staggerItem}
               transition={transitionPresets.normal}
               className="rounded-xl border bg-card p-4"

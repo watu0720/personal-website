@@ -12,6 +12,8 @@ import {
   getNiconicoMylists,
   getNiconicoNotifications,
 } from "@/lib/services/niconico";
+import { PageMotion } from "@/components/motion/PageMotion";
+import { StaggerList } from "@/components/motion/StaggerList";
 
 export const metadata: Metadata = {
   title: "サイト内検索 | わっつーのHP",
@@ -86,14 +88,23 @@ export default async function SearchPage(props: any) {
 
   if (!q) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-10">
-        <h1 className="mb-4 text-xl font-bold text-foreground md:text-2xl">
-          サイト内検索
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          ヘッダーの検索ボックスから、1文字以上入力して検索してください。
-        </p>
-      </div>
+      <PageMotion>
+        {/* 背景装飾 */}
+        <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute top-[25%] left-[30%] w-64 h-64 rounded-full bg-primary/4 blur-3xl" />
+          <div className="absolute bottom-[30%] right-[25%] w-48 h-48 rounded-full bg-accent/3 blur-2xl" />
+          <div className="absolute top-[65%] left-[15%] w-32 h-32 rounded-full bg-primary/2 blur-xl" />
+        </div>
+
+        <div className="relative mx-auto max-w-4xl px-4 py-8 md:px-6 md:py-12">
+          <h1 className="mb-4 text-xl font-bold text-foreground md:text-2xl">
+            サイト内検索
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            ヘッダーの検索ボックスから、1文字以上入力して検索してください。
+          </p>
+        </div>
+      </PageMotion>
     );
   }
 
@@ -338,6 +349,7 @@ export default async function SearchPage(props: any) {
     repoHits.length > 0;
 
   return (
+    <PageMotion>
     <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-10">
       <h1 className="mb-2 text-xl font-bold text-foreground md:text-2xl">
         サイト内検索
@@ -397,12 +409,13 @@ export default async function SearchPage(props: any) {
         </p>
       )}
 
+      <StaggerList>
       {pageHits.length > 0 && (
         <section className="mb-8">
           <h2 className="mb-3 text-sm font-semibold text-foreground">ページ</h2>
           <ul className="space-y-2">
             {pageHits.map((hit, i) => (
-              <li key={`${hit.pageKey}-${i}`} className="rounded-lg border bg-card p-3">
+              <li key={`${hit.pageKey}-${i}`} data-stagger-item className="rounded-lg border bg-card p-3">
                 <Link
                   href={hit.href}
                   className="text-sm font-medium text-primary underline underline-offset-2"
@@ -423,7 +436,7 @@ export default async function SearchPage(props: any) {
           <h2 className="mb-3 text-sm font-semibold text-foreground">コメント</h2>
           <ul className="space-y-2">
             {commentHits.map((hit) => (
-              <li key={hit.id} className="rounded-lg border bg-card p-3">
+              <li key={hit.id} data-stagger-item className="rounded-lg border bg-card p-3">
                 <Link
                   href={hit.href}
                   className="text-xs font-medium text-primary underline underline-offset-2"
@@ -446,7 +459,7 @@ export default async function SearchPage(props: any) {
           </h2>
           <ul className="space-y-2">
             {videoHits.map((hit, i) => (
-              <li key={`${hit.service}-${hit.url}-${i}`} className="rounded-lg border bg-card p-3">
+              <li key={`${hit.service}-${hit.url}-${i}`} data-stagger-item className="rounded-lg border bg-card p-3">
                 <a
                   href={hit.url}
                   target="_blank"
@@ -469,7 +482,7 @@ export default async function SearchPage(props: any) {
           <h2 className="mb-3 text-sm font-semibold text-foreground">GitHub</h2>
           <ul className="space-y-2">
             {repoHits.map((hit) => (
-              <li key={hit.url} className="rounded-lg border bg-card p-3">
+              <li key={hit.url} data-stagger-item className="rounded-lg border bg-card p-3">
                 <a
                   href={hit.url}
                   target="_blank"
@@ -486,7 +499,9 @@ export default async function SearchPage(props: any) {
           </ul>
         </section>
       )}
+      </StaggerList>
     </div>
+    </PageMotion>
   );
 }
 

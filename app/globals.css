@@ -53,7 +53,34 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground relative;
+  }
+  
+  /* 背景装飾用のベースレイヤー */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+    background-image: 
+      radial-gradient(circle at 25% 25%, hsl(var(--primary) / 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, hsl(var(--accent) / 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 50% 50%, hsl(var(--primary) / 0.015) 0%, transparent 70%);
+    background-size: 100vw 100vh;
+    background-position: 0 0;
+    background-repeat: no-repeat;
+    pointer-events: none;
+  }
+  
+  /* ダークモード用の背景調整 */
+  .dark body::before {
+    background-image: 
+      radial-gradient(circle at 25% 25%, hsl(var(--primary) / 0.05) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, hsl(var(--accent) / 0.05) 0%, transparent 50%),
+      radial-gradient(circle at 50% 50%, hsl(var(--primary) / 0.025) 0%, transparent 70%);
   }
 }
 
@@ -105,5 +132,21 @@
   }
   .link-hover:hover {
     @apply underline;
+  }
+
+  /* 背景テクスチャパターン */
+  .bg-texture {
+    background-image: 
+      radial-gradient(circle at 1px 1px, hsl(var(--border)) 1px, transparent 0);
+    background-size: 20px 20px;
+    opacity: 0.3;
+  }
+  
+  /* カードの背景グラデーション */
+  .card-gradient {
+    background: linear-gradient(135deg, 
+      hsl(var(--card)) 0%, 
+      hsl(var(--card) / 0.95) 50%, 
+      hsl(var(--card) / 0.9) 100%);
   }
 }
