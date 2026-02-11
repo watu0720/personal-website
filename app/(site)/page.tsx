@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getPageContent } from "@/lib/repositories/page-contents";
 import { getChangelog } from "@/lib/repositories/changelog";
 import { getHomeNotifications } from "@/lib/services/home-notifications";
-import { HomeNavCards } from "@/components/home/nav-cards";
 import { HomeNotificationsSection } from "@/components/home/notifications-section";
 import { HomeChangelogSection } from "@/components/home/changelog-section";
 import { HomeExternalLinks } from "@/components/home/external-links";
@@ -103,10 +102,6 @@ export default async function HomePage(props: any) {
             githubUrl={externalLinks.githubUrl}
             showIcons
           />
-        </AnimatedSection>
-        
-        <AnimatedSection>
-          <HomeNavCards />
         </AnimatedSection>
         
         <AnimatedSection>
