@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getPageContent } from "@/lib/repositories/page-contents";
 import { getChangelog } from "@/lib/repositories/changelog";
 import { getHomeNotifications } from "@/lib/services/home-notifications";
-import { HomeHero } from "@/components/home/hero";
 import { HomeNavCards } from "@/components/home/nav-cards";
 import { HomeNotificationsSection } from "@/components/home/notifications-section";
 import { HomeChangelogSection } from "@/components/home/changelog-section";
@@ -63,12 +62,19 @@ export default async function HomePage(props: any) {
             </p>
           </div>
         )}
-        
-        <HomeHero
-          headerImageUrl={content?.header_image_url}
-          title={content?.title || undefined}
-          subtitle={undefined}
-        />
+
+        <AnimatedSection className="mb-8">
+          <h1 className="mb-2 text-3xl font-bold text-primary">
+            {content?.title ?? "ホーム"}
+          </h1>
+          <p className="text-muted-foreground">
+            動画投稿・開発活動などをまとめた個人ホームページです。
+          </p>
+          <div className="mt-2 h-0.5 w-24 bg-orange-500 rounded-full" />
+          <p className="mt-4 text-sm text-muted-foreground">
+            7日以内の新着通知にNewが付きます。
+          </p>
+        </AnimatedSection>
         
         {content?.body_html && (
           <AnimatedSection className="mb-12">

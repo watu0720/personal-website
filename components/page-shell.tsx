@@ -4,10 +4,16 @@ import { SiteFooter } from "@/components/site-footer";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { PageTransition } from "@/components/page-transition";
 
-export function PageShell({ children }: { children: React.ReactNode }) {
+interface PageShellProps {
+  children: React.ReactNode;
+  /** ホーム用ヘッダー画像URL（ヘッダー内で pathname === '/' のときのみ表示） */
+  headerImageUrl?: string | null;
+}
+
+export function PageShell({ children, headerImageUrl }: PageShellProps) {
   return (
     <div className="flex min-h-screen flex-col">
-      <SiteHeader />
+      <SiteHeader heroImageUrl={headerImageUrl} />
       <main className="flex-1">
         <PageTransition>{children}</PageTransition>
       </main>

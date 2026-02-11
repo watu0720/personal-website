@@ -4,7 +4,7 @@ setup:
 	pnpm install
 
 dev:
-	pnpm run dev
+	@powershell -Command "& { $$Host.UI.RawUI.KeyAvailable = $$false; pnpm run dev }"
 
 lint:
 	pnpm run lint
