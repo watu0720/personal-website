@@ -12,7 +12,7 @@ export function ProfileHeroCard({ children }: { children: React.ReactNode }) {
       initial={fadeInUp.initial}
       animate={fadeInUp.animate}
       transition={transitionPresets.normal}
-      className="mb-8 overflow-hidden rounded-2xl border bg-card shadow-sm"
+      className="mb-12 overflow-hidden rounded-3xl border bg-gradient-to-br from-card to-card/80 shadow-lg"
     >
       {children}
     </motion.div>

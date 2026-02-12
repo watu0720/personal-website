@@ -8,13 +8,22 @@ import { NiconicoNotificationsSection } from "@/components/niconico/notification
 import { NiconicoUploadsSection } from "@/components/niconico/uploads-section";
 import { NiconicoMylistsSection } from "@/components/niconico/mylists-section";
 import { HomeExternalLinks } from "@/components/home/external-links";
+import { PageMotion } from "@/components/motion/PageMotion";
 
 export const metadata: Metadata = {
   title: "ニコニコ動画 | わっつーのHP",
   description: "ニコニコ動画投稿一覧",
 };
 
-export default async function NiconicoPage() {
+export default async function NiconicoPage(props: any) {
+  const rawSearchParams = props?.searchParams;
+  const resolvedSearchParams =
+    rawSearchParams && typeof rawSearchParams.then === "function"
+      ? await rawSearchParams
+      : rawSearchParams ?? {};
+  const rawQuery =
+    typeof resolvedSearchParams.q === "string" ? resolvedSearchParams.q : "";
+  const query = rawQuery.trim();
   const content = await getPageContent("niconico");
   const title = content?.title ?? "ニコニコ動画";
 
@@ -30,7 +39,25 @@ export default async function NiconicoPage() {
   const latestUploads = uploads.items.slice(0, 6);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-10">
+    <PageMotion>
+      {/* 背景装飾 */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute top-[15%] left-[20%] w-80 h-80 rounded-full bg-accent/4 blur-3xl" />
+        <div className="absolute bottom-[20%] right-[30%] w-64 h-64 rounded-full bg-primary/3 blur-2xl" />
+        <div className="absolute top-[65%] right-[15%] w-48 h-48 rounded-full bg-accent/2 blur-xl" />
+      </div>
+
+      <div className="relative mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-12">
+        {query && (
+          <div className="mb-6 rounded-2xl border bg-gradient-to-r from-primary/10 to-accent/10 p-4">
+            <p className="text-sm text-muted-foreground">
+              これらのキーワードがハイライトされています：
+              <span className="ml-2 inline-flex items-center rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                {query}
+              </span>
+            </p>
+          </div>
+        )}
       <h1 className="mb-4 flex items-center gap-2 text-xl font-bold text-foreground md:text-2xl">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center md:h-9 md:w-9" aria-hidden>
           <ServiceIcon type="niconico" size={32} className="h-6 w-6 md:h-7 md:w-7" />
@@ -61,7 +88,10 @@ export default async function NiconicoPage() {
       )}
       <NiconicoMylistsSection items={mylists.items} />
 
-      <CommentSection pageKey="niconico" />
-    </div>
+        <div className="rounded-2xl border bg-gradient-to-br from-card to-card/80 p-6 md:p-8">
+          <CommentSection pageKey="niconico" />
+        </div>
+      </div>
+    </PageMotion>
   );
 }

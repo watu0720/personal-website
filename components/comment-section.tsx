@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { ThumbsUp, ThumbsDown, Heart, Flag, Send, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -8,6 +10,8 @@ import { staggerContainer, staggerItem, transitionPresets } from "@/lib/animatio
 import { getOrCreateFingerprint } from "@/lib/fingerprint";
 import { shortenUrl } from "@/lib/repositories/comments";
 import { cn } from "@/lib/utils";
+import { SearchHighlightContainer } from "@/components/search-highlight";
+import { pulseElement } from "@/lib/motion/commentPulse";
 
 const EDIT_TOKENS_KEY = "comment_edit_tokens";
 
@@ -73,15 +77,60 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
   const [reportMessage, setReportMessage] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingBody, setEditingBody] = useState("");
+  const [hasLog, setHasLog] = useState(false);
+  const [reportedIds, setReportedIds] = useState<string[]>([]);
+  const [pulseTargetId, setPulseTargetId] = useState<string | null>(null);
+  const fetchVersionRef = useRef(0);
+  const cardToPulseRef = useRef<HTMLLIElement>(null);
 
   const fingerprint = getOrCreateFingerprint();
+  const searchParams = useSearchParams();
+  const highlightQuery = searchParams.get("q") ?? undefined;
+  const highlightMode =
+    (searchParams.get("mode") === "word" ? "word" : "partial") as
+      | "partial"
+      | "word";
 
   const fetchComments = useCallback(async () => {
-    const res = await fetch(`/api/comments?page_key=${encodeURIComponent(pageKey)}`, {
-      headers: fingerprint ? { "X-Fingerprint": fingerprint } : {},
-    });
+    const version = ++fetchVersionRef.current;
+    const res = await fetch(
+      `/api/comments?page_key=${encodeURIComponent(pageKey)}&limit=21`,
+      {
+        cache: "no-store",
+        headers: fingerprint ? { "X-Fingerprint": fingerprint } : {},
+      }
+    );
     const data = await res.json();
-    if (Array.isArray(data)) setComments(data);
+    if (fetchVersionRef.current !== version) {
+      // もっと新しいリクエスト結果があるので破棄
+      return;
+    }
+    if (Array.isArray(data)) {
+      // 21件以上のときのみコメントログボタンを表示
+      setHasLog(data.length > 20);
+      const visible = data.slice(0, 20) as CommentItem[];
+      setComments(visible);
+
+      // 通報済みコメントの取得（現在の閲覧者のみ）
+      const ids = visible.map((c) => c.id);
+      if (ids.length > 0) {
+        const params = new URLSearchParams({
+          comment_ids: ids.join(","),
+        });
+        const statusRes = await fetch(`/api/reports?${params.toString()}`, {
+          cache: "no-store",
+          headers: fingerprint ? { "X-Fingerprint": fingerprint } : {},
+        });
+        if (statusRes.ok) {
+          const json = (await statusRes.json()) as { reportedIds?: string[] };
+          setReportedIds(Array.isArray(json.reportedIds) ? json.reportedIds : []);
+        } else {
+          setReportedIds([]);
+        }
+      } else {
+        setReportedIds([]);
+      }
+    }
     setLoading(false);
   }, [pageKey, fingerprint]);
 
@@ -111,6 +160,13 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- supabase client is stable
   }, []);
+
+  useEffect(() => {
+    if (pulseTargetId && cardToPulseRef.current) {
+      pulseElement(cardToPulseRef.current);
+      setPulseTargetId(null);
+    }
+  }, [pulseTargetId, comments]);
 
   async function submitComment() {
     const bodyTrim = body.trim();
@@ -147,9 +203,38 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
       if (tab === "guest" && data.edit_token && data.id) {
         setStoredEditToken(data.id, data.edit_token);
       }
+       // サーバー側で保存されたコメントをもとに、即座に一覧へ反映（楽観的更新）
+      const createdAt =
+        typeof data.created_at === "string"
+          ? data.created_at
+          : new Date().toISOString();
+      const newComment: CommentItem = {
+        id: data.id as string,
+        page_key: pageKey,
+        author_type: tab,
+        author_user_id: tab === "user" ? (user?.id ?? null) : null,
+        guest_name: tab === "guest" ? guestName.trim() : null,
+        author_name:
+          tab === "user"
+            ? ((user?.displayName ||
+                user?.email?.split("@")[0] ||
+                "ログインユーザー") as string)
+            : null,
+        author_avatar_url: tab === "user" ? user?.avatarUrl ?? null : null,
+        body: bodyTrim,
+        is_hidden: false,
+        hidden_reason: null,
+        admin_heart: false,
+        created_at: createdAt,
+        edited_at: null,
+        good_count: 0,
+        not_good_count: 0,
+        my_reaction: null,
+      };
+      setComments((prev) => [newComment, ...prev].slice(0, 20));
       setBody("");
       setGuestName("");
-      fetchComments();
+      setPulseTargetId(data.id as string);
     } finally {
       setSubmitting(false);
     }
@@ -203,7 +288,8 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
     setEditingId(null);
     setEditingBody("");
     setError(null);
-    fetchComments();
+    await fetchComments();
+    setPulseTargetId(commentId);
   }
 
   async function submitReport(commentId: string) {
@@ -252,7 +338,17 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
 
   return (
     <section className="mt-10 border-t pt-8">
-      <h2 className="mb-4 text-lg font-bold text-foreground">コメント</h2>
+      <div className="mb-4 flex items-center gap-3">
+        <h2 className="text-lg font-bold text-foreground">コメント</h2>
+        {hasLog && (
+          <Link
+            href={`/comments/${pageKey}`}
+            className="text-sm text-muted-foreground underline underline-offset-2 hover:text-primary"
+          >
+            コメントログへ
+          </Link>
+        )}
+      </div>
 
       <div className="mb-4 flex gap-2">
         <button
@@ -313,15 +409,19 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
       {loading ? (
         <p className="text-sm text-muted-foreground">読み込み中...</p>
       ) : (
-        <motion.ul
-          className="space-y-4"
-          variants={staggerContainer}
-          initial="initial"
-          animate="animate"
-        >
-          {comments.map((c) => (
+        <SearchHighlightContainer query={highlightQuery} mode={highlightMode}>
+          <motion.ul
+            className="space-y-4"
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+          >
+          {comments.map((c) => {
+            const isReportedByMe = reportedIds.includes(c.id);
+            return (
             <motion.li
               key={c.id}
+              ref={c.id === pulseTargetId ? cardToPulseRef : undefined}
               variants={staggerItem}
               transition={transitionPresets.normal}
               className="rounded-xl border bg-card p-4"
@@ -401,6 +501,15 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                         </button>
                       </div>
                     </div>
+                  ) : isReportedByMe ? (
+                    <details className="mb-3 rounded-lg border border-dashed border-destructive/40 bg-muted/40 p-3 text-sm">
+                      <summary className="cursor-pointer select-none text-xs font-medium text-destructive">
+                        通報済みのコメントです（クリックして本文を表示）
+                      </summary>
+                      <div className="mt-2 whitespace-pre-wrap text-sm text-foreground">
+                        {formatBody(c.body)}
+                      </div>
+                    </details>
                   ) : (
                     <p className="mb-3 whitespace-pre-wrap text-sm text-foreground">
                       {formatBody(c.body)}
@@ -444,14 +553,19 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                     <button
                       type="button"
                       onClick={() => {
+                        if (isReportedByMe) return;
                         setReportingId(reportingId === c.id ? null : c.id);
                         if (reportingId !== c.id) setError(null);
                       }}
-                      className="flex items-center gap-1 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-muted"
+                      className={cn(
+                        "flex items-center gap-1 rounded px-2 py-1 text-sm text-muted-foreground",
+                        isReportedByMe ? "cursor-default opacity-70" : "hover:bg-muted"
+                      )}
+                      disabled={isReportedByMe}
                       aria-label="通報"
                     >
                       <Flag className="h-4 w-4" />
-                      通報
+                      {isReportedByMe ? "通報済み" : "通報"}
                     </button>
                   </div>
                   {reportingId === c.id && (
@@ -498,8 +612,9 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                 </>
               )}
             </motion.li>
-          ))}
+          );})}
         </motion.ul>
+        </SearchHighlightContainer>
       )}
       {!loading && comments.length === 0 && (
         <p className="text-sm text-muted-foreground">まだコメントはありません。</p>

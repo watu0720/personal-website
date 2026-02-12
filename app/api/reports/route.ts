@@ -13,6 +13,49 @@ const BodySchema = z.object({
 
 const AUTO_HIDE_THRESHOLD = 3;
 
+// 現在の閲覧者が通報済みのコメントID一覧を返す
+export async function GET(req: NextRequest) {
+  const clientId = getClientId(req.headers);
+  const url = new URL(req.url);
+  const idsParam = url.searchParams.get("comment_ids");
+  if (!idsParam) {
+    return NextResponse.json({ error: "comment_ids is required" }, { status: 400 });
+  }
+  const ids = idsParam
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  if (ids.length === 0) {
+    return NextResponse.json({ reportedIds: [] });
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const fingerprintHeader = req.headers.get("x-fingerprint") ?? undefined;
+
+  const admin = createServiceRoleClient();
+  let query = admin.from("comment_reports").select("comment_id");
+
+  if (user) {
+    query = query.eq("reporter_user_id", user.id);
+  } else {
+    const guestFingerprint = fingerprintHeader || `guest-${clientId}`;
+    query = query.eq("guest_fingerprint", guestFingerprint);
+  }
+
+  const { data, error } = await query.in("comment_id", ids);
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const reportedIds = Array.from(
+    new Set((data ?? []).map((row) => (row as { comment_id: string }).comment_id))
+  );
+  return NextResponse.json({ reportedIds });
+}
+
 export async function POST(req: NextRequest) {
   const clientId = getClientId(req.headers);
   const { ok: rateOk } = checkRateLimit("report", clientId, 3);
@@ -31,7 +74,9 @@ export async function POST(req: NextRequest) {
 
   const { comment_id, reason, message, fingerprint } = parsed.data;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   let reporter_type: "guest" | "user";
   let reporter_user_id: string | null = null;

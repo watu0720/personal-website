@@ -60,8 +60,20 @@ export default function AdminReportsPage() {
   return (
     <div className="p-6">
       <h1 className="mb-6 text-xl font-bold text-foreground">通報管理</h1>
+      <p className="mb-2 text-sm text-muted-foreground">
+        ここでの「対応済」は、管理者が通報内容を確認し終えたかどうかを示すステータスです。
+        コメントの表示・非表示や自動非表示（通報合計3件以上）の挙動には直接影響しません。
+      </p>
       <div className="mb-4">
-        <select value={resolvedFilter} onChange={(e) => setResolvedFilter(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm">
+        <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="resolvedFilter">
+          表示する通報のステータス
+        </label>
+        <select
+          id="resolvedFilter"
+          value={resolvedFilter}
+          onChange={(e) => setResolvedFilter(e.target.value)}
+          className="rounded-lg border bg-background px-3 py-2 text-sm"
+        >
           <option value="false">未対応</option>
           <option value="true">対応済</option>
           <option value="">すべて</option>
