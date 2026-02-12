@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Sun, Moon, Menu, X } from "lucide-react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
@@ -38,27 +38,32 @@ export function SiteHeader({ heroImageUrl }: SiteHeaderProps) {
   const [navMenuOpen, setNavMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const [search, setSearch] = useState("");
+  const [recentSearches, setRecentSearches] = useState<string[]>([]); // Hydrationエラー回避のため、初期値は空配列
 
   const RECENT_KEY = "recent_search_words";
 
-  function loadRecent(): string[] {
-    if (typeof window === "undefined") return [];
+  // クライアント側でのみlocalStorageから読み込む（Hydrationエラー回避）
+  useEffect(() => {
+    if (typeof window === "undefined") return;
     try {
       const raw = window.localStorage.getItem(RECENT_KEY);
-      if (!raw) return [];
+      if (!raw) return;
       const arr = JSON.parse(raw) as string[];
-      return Array.isArray(arr) ? arr : [];
+      if (Array.isArray(arr)) {
+        setRecentSearches(arr);
+      }
     } catch {
-      return [];
+      // ignore
     }
-  }
+  }, []);
 
   function saveRecent(q: string) {
     if (typeof window === "undefined") return;
     try {
-      const current = loadRecent().filter((w) => w !== q);
+      const current = recentSearches.filter((w) => w !== q);
       const next = [q, ...current].slice(0, 10);
       window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      setRecentSearches(next); // stateも更新
     } catch {
       // ignore
     }
@@ -113,8 +118,7 @@ export function SiteHeader({ heroImageUrl }: SiteHeaderProps) {
                       if (e.key === "Enter") handleSearchSubmit();
                     }}
                     onFocus={(e) => {
-                      const recent = loadRecent();
-                      if (recent.length === 0) return;
+                      if (recentSearches.length === 0) return;
                       const list = document.getElementById("recent-search-list");
                       if (list) list.classList.remove("hidden");
                     }}
@@ -131,7 +135,7 @@ export function SiteHeader({ heroImageUrl }: SiteHeaderProps) {
                     id="recent-search-list"
                     className="absolute left-0 right-0 top-full z-20 mt-1 hidden rounded-lg border bg-card py-1 text-xs shadow-lg"
                   >
-                    {loadRecent().map((word) => (
+                    {recentSearches.map((word) => (
                       <button
                         key={word}
                         type="button"

@@ -44,6 +44,7 @@ type PageKey = (typeof PAGE_KEYS)[number];
 
 type CommentItem = {
   id: string;
+  client_id?: string; // Optimistic UI用の一時ID
   page_key: string;
   author_type: "guest" | "user";
   author_user_id: string | null;
@@ -103,6 +104,7 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
   const [replies, setReplies] = useState<Record<string, ReplyItem[]>>({});
   const [replyBodyById, setReplyBodyById] = useState<Record<string, string>>({});
   const [sort, setSort] = useState<"new" | "old" | "top">("new");
+  const [hasOptimisticComment, setHasOptimisticComment] = useState(false); // Optimisticコメントの存在フラグ
 
   const fingerprint = getOrCreateFingerprint();
   const searchParams = useSearchParams();
@@ -206,6 +208,53 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
     }
     setError(null);
     setSubmitting(true);
+
+    // Optimistic UI: client_idを生成（クライアント側でのみ実行）
+    // crypto.randomUUID()のフォールバック実装
+    const generateClientId = () => {
+      if (typeof crypto !== "undefined" && crypto.randomUUID) {
+        return `cmt_local_${crypto.randomUUID()}`;
+      }
+      // フォールバック: タイムスタンプ + ランダム文字列
+      return `cmt_local_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    };
+    const clientId = generateClientId();
+    const now = new Date().toISOString();
+
+    // Optimistic コメントを生成（先頭に追加）
+    // 仕様書4-2: idは未確定、client_idのみを持つ
+    const optimisticComment: CommentItem = {
+      id: "", // 未確定（仕様書通り）
+      client_id: clientId,
+      page_key: pageKey,
+      author_type: tab,
+      author_user_id: tab === "user" ? (user?.id ?? null) : null,
+      guest_name: tab === "guest" ? guestName.trim() : null,
+      author_name:
+        tab === "user"
+          ? ((user?.displayName ||
+              user?.email?.split("@")[0] ||
+              "ログインユーザー") as string)
+          : null,
+      author_avatar_url: tab === "user" ? user?.avatarUrl ?? null : null,
+      body: bodyTrim,
+      is_hidden: false,
+      hidden_reason: null,
+      admin_heart: false,
+      created_at: now,
+      edited_at: null,
+      good_count: 0,
+      not_good_count: 0,
+      my_reaction: null,
+    };
+
+    // Optimistic コメントを先頭に追加（仕様書4-2: 新しい順のため先頭に挿入）
+    setHasOptimisticComment(true);
+    setComments((prev) => {
+      const next = [optimisticComment, ...prev];
+      return next.slice(0, 20);
+    });
+
     try {
       const payload = {
         page_key: pageKey,
@@ -220,19 +269,23 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
       });
       const data = await res.json();
       if (!res.ok) {
+        // 失敗時: Optimisticコメントは残す（仕様書5-5参照）
         setError(data?.error ?? "投稿に失敗しました。");
         return;
       }
       if (tab === "guest" && data.edit_token && data.id) {
         setStoredEditToken(data.id, data.edit_token);
       }
-       // サーバー側で保存されたコメントをもとに、即座に一覧へ反映（楽観的更新）
+
+      // サーバー応答後: Optimisticコメントを確定コメントで置換
       const createdAt =
         typeof data.created_at === "string"
           ? data.created_at
           : new Date().toISOString();
-      const newComment: CommentItem = {
+      const confirmedComment: CommentItem = {
         id: data.id as string,
+        // client_idは削除しない（置換時のkey一致のため一時的に保持、次のレンダリングで削除される）
+        client_id: undefined,
         page_key: pageKey,
         author_type: tab,
         author_user_id: tab === "user" ? (user?.id ?? null) : null,
@@ -254,10 +307,36 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
         not_good_count: 0,
         my_reaction: null,
       };
-      setComments((prev) => [newComment, ...prev].slice(0, 20));
+
+      // client_idで一致するOptimisticコメントを置換（仕様書4-4）
+      setHasOptimisticComment(false);
+      setComments((prev) => {
+        const index = prev.findIndex((c) => c.client_id === clientId);
+        if (index === -1) {
+          // 見つからない場合は先頭に追加（フォールバック）
+          return [confirmedComment, ...prev].slice(0, 20);
+        }
+        // 同一位置で確定コメントに置換（仕様書4-4: 置換方式を厳守）
+        // 配列を直接変更せず、新しい配列を作成して置換することで、Reactの再レンダリングを最適化
+        const before = prev.slice(0, index);
+        const after = prev.slice(index + 1);
+        return [...before, confirmedComment, ...after];
+      });
+
       setBody("");
       setGuestName("");
       setPulseTargetId(data.id as string);
+
+      // 送信成功後、自分のコメント要素にscrollIntoViewを実行（仕様書6-1）
+      // Reactの状態更新とDOMの更新を待つため、次のフレームで実行
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const element = document.querySelector(`[data-comment-id="${data.id}"]`);
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+        });
+      });
     } finally {
       setSubmitting(false);
     }
@@ -617,18 +696,27 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
         <SearchHighlightContainer query={highlightQuery} mode={highlightMode}>
           <motion.ul
             className="space-y-4"
-            variants={staggerContainer}
-            initial="initial"
-            animate="animate"
+            variants={hasOptimisticComment ? undefined : staggerContainer}
+            initial={hasOptimisticComment ? false : "initial"}
+            animate={hasOptimisticComment ? false : "animate"}
           >
           {comments.map((c) => {
-            const isReportedByMe = reportedIds.includes(c.id);
+            // Optimisticコメントかどうかを判定（client_idが存在し、idが空文字列または未定義の場合）
+            const isOptimistic = !!c.client_id && (!c.id || c.id.trim() === "");
+            const isConfirmedComment = !isOptimistic && !!c.id && c.id.trim() !== "";
+            const isReportedByMe: boolean = isConfirmedComment && c.id ? reportedIds.includes(c.id) : false;
+            const commentKey = c.client_id ?? c.id; // 仕様書4-3: keyはclient_id ?? id
+            // data-comment-idは確定コメント（Optimisticでない）の場合のみ設定
+            const commentIdForScroll = isConfirmedComment && c.id ? c.id : undefined;
             return (
             <motion.li
-              key={c.id}
-              ref={c.id === pulseTargetId ? cardToPulseRef : undefined}
+              key={commentKey}
+              {...(commentIdForScroll ? { "data-comment-id": commentIdForScroll } : {})}
+              ref={c.id === pulseTargetId && !isOptimistic ? cardToPulseRef : undefined}
               variants={staggerItem}
               transition={transitionPresets.normal}
+              initial={isOptimistic ? false : "initial"}
+              animate="animate"
               className="rounded-xl border bg-card p-4"
             >
               {c.hidden_reason === "deleted" ? (
@@ -661,10 +749,10 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                         </span>
                       )}
                     </span>
-                    {isAdmin ? (
+                    {isAdmin && !isOptimistic ? (
                       <button
                         type="button"
-                        onClick={() => toggleAdminHeart(c.id)}
+                        onClick={() => c.id && toggleAdminHeart(c.id)}
                         className={cn(
                           "flex items-center gap-0.5 rounded p-0.5 transition-colors hover:bg-muted",
                           c.admin_heart ? "text-primary" : "text-muted-foreground"
@@ -680,7 +768,7 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                       </span>
                     ) : null}
                   </div>
-                  {editingId === c.id ? (
+                  {!isOptimistic && editingId === c.id ? (
                     <div className="mb-3">
                       <textarea
                         aria-label="編集用本文"
@@ -721,10 +809,10 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                     </p>
                   )}
                   <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                    {canEdit(c) && editingId !== c.id && (
+                    {!isOptimistic && canEdit(c) && editingId !== c.id && (
                       <button
                         type="button"
-                        onClick={() => { setEditingId(c.id); setEditingBody(c.body); setError(null); }}
+                        onClick={() => { c.id && setEditingId(c.id); setEditingBody(c.body); setError(null); }}
                         className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted md:text-sm"
                         aria-label="編集"
                       >
@@ -732,72 +820,93 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                         <span className="hidden sm:inline">編集</span>
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => toggleReaction(c.id, "good")}
-                      className={cn(
-                        "flex items-center gap-1 rounded px-2 py-1 text-xs md:text-sm",
-                        c.my_reaction === "good" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-muted"
-                      )}
-                      aria-label="Good"
-                    >
-                      <ThumbsUp className="h-3 w-3 md:h-4 md:w-4" />
-                      <span>{c.good_count}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => toggleReaction(c.id, "not_good")}
-                      className={cn(
-                        "flex items-center gap-1 rounded px-2 py-1 text-xs md:text-sm",
-                        c.my_reaction === "not_good" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
-                      )}
-                      aria-label="Not Good"
-                    >
-                      <ThumbsDown className="h-3 w-3 md:h-4 md:w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!user) {
-                          setError("返信するにはログインが必要です。");
-                          return;
-                        }
-                        setReplyInputOpenIds((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(c.id)) {
-                            next.delete(c.id);
-                            setReplyBodyById((prev) => ({ ...prev, [c.id]: "" }));
-                          } else {
-                            next.add(c.id);
+                    {!isOptimistic && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => c.id && toggleReaction(c.id, "good")}
+                          className={cn(
+                            "flex items-center gap-1 rounded px-2 py-1 text-xs md:text-sm",
+                            c.my_reaction === "good" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-muted"
+                          )}
+                          aria-label="Good"
+                        >
+                          <ThumbsUp className="h-3 w-3 md:h-4 md:w-4" />
+                          <span>{c.good_count}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => c.id && toggleReaction(c.id, "not_good")}
+                          className={cn(
+                            "flex items-center gap-1 rounded px-2 py-1 text-xs md:text-sm",
+                            c.my_reaction === "not_good" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
+                          )}
+                          aria-label="Not Good"
+                        >
+                          <ThumbsDown className="h-3 w-3 md:h-4 md:w-4" />
+                        </button>
+                      </>
+                    )}
+                    {isOptimistic && (
+                      <>
+                        <div className="flex items-center gap-1 rounded px-2 py-1 text-xs md:text-sm text-muted-foreground opacity-50">
+                          <ThumbsUp className="h-3 w-3 md:h-4 md:w-4" />
+                          <span>{c.good_count}</span>
+                        </div>
+                        <div className="flex items-center gap-1 rounded px-2 py-1 text-xs md:text-sm text-muted-foreground opacity-50">
+                          <ThumbsDown className="h-3 w-3 md:h-4 md:w-4" />
+                        </div>
+                      </>
+                    )}
+                    {!isOptimistic && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!user) {
+                            setError("返信するにはログインが必要です。");
+                            return;
                           }
-                          return next;
-                        });
-                      }}
+                          if (!c.id) return;
+                          const commentId = c.id; // 型ガード
+                          setReplyInputOpenIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(commentId)) {
+                              next.delete(commentId);
+                              setReplyBodyById((prev) => ({ ...prev, [commentId]: "" }));
+                            } else {
+                              next.add(commentId);
+                            }
+                            return next;
+                          });
+                        }}
                       className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted md:text-sm"
                       aria-label="返信"
                     >
                       <MessageSquare className="h-3 w-3 md:h-4 md:w-4" />
                       <span className="hidden sm:inline">返信</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (isReportedByMe) return;
-                        setReportingId(reportingId === c.id ? null : c.id);
-                        if (reportingId !== c.id) setError(null);
-                      }}
-                      className={cn(
-                        "flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground md:text-sm",
-                        isReportedByMe ? "cursor-default opacity-70" : "hover:bg-muted"
-                      )}
-                      disabled={isReportedByMe}
-                      aria-label="通報"
-                    >
-                      <Flag className="h-3 w-3 md:h-4 md:w-4" />
-                      <span className="hidden sm:inline">{isReportedByMe ? "通報済み" : "通報"}</span>
-                    </button>
+                    )}
+                    {!isOptimistic && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isReportedByMe || !c.id) return;
+                          setReportingId(reportingId === c.id ? null : c.id);
+                          if (reportingId !== c.id) setError(null);
+                        }}
+                        className={cn(
+                          "flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground md:text-sm",
+                          isReportedByMe ? "cursor-default opacity-70" : "hover:bg-muted"
+                        )}
+                        disabled={isReportedByMe}
+                        aria-label="通報"
+                      >
+                        <Flag className="h-3 w-3 md:h-4 md:w-4" />
+                        <span className="hidden sm:inline">{isReportedByMe ? "通報済み" : "通報"}</span>
+                      </button>
+                    )}
                   </div>
-                  {reportingId === c.id && (
+                  {!isOptimistic && reportingId === c.id && c.id && (
                     <div className="mt-3 rounded-lg border bg-muted/50 p-3">
                       <p className="mb-2 text-sm font-medium">通報理由</p>
                       <select
@@ -839,34 +948,36 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                     </div>
                   )}
                   {/* 返信（1階層） */}
-                  <div className="mt-3 border-t pt-3">
-                    {/* 返信一覧の開閉ボタン */}
-                    {(c.reply_count && c.reply_count > 0) || (replies[c.id] && replies[c.id]!.length > 0) ? (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          setReplyOpenIds((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(c.id)) {
-                              next.delete(c.id);
-                            } else {
-                              next.add(c.id);
+                  {!isOptimistic && (
+                    <div className="mt-3 border-t pt-3">
+                      {/* 返信一覧の開閉ボタン */}
+                      {c.id && ((c.reply_count && c.reply_count > 0) || (replies[c.id] && replies[c.id]!.length > 0)) ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!c.id) return;
+                            setReplyOpenIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(c.id)) {
+                                next.delete(c.id);
+                              } else {
+                                next.add(c.id);
+                              }
+                              return next;
+                            });
+                            if (!replies[c.id] && !replyOpenIds.has(c.id)) {
+                              await loadReplies(c.id);
                             }
-                            return next;
-                          });
-                          if (!replies[c.id] && !replyOpenIds.has(c.id)) {
-                            await loadReplies(c.id);
-                          }
-                        }}
-                        className="mb-2 text-xs text-muted-foreground underline hover:text-primary"
-                      >
-                        {replyOpenIds.has(c.id)
-                          ? "返信を非表示"
-                          : `${c.reply_count ?? replies[c.id]?.length ?? 0}件の返信`}
-                      </button>
-                    ) : null}
-                    {/* 返信入力欄 */}
-                    {replyInputOpenIds.has(c.id) && user && (
+                          }}
+                          className="mb-2 text-xs text-muted-foreground underline hover:text-primary"
+                        >
+                          {replyOpenIds.has(c.id)
+                            ? "返信を非表示"
+                            : `${c.reply_count ?? replies[c.id]?.length ?? 0}件の返信`}
+                        </button>
+                      ) : null}
+                      {/* 返信入力欄 */}
+                      {c.id && replyInputOpenIds.has(c.id) && user && (
                       <div className="mb-3 pl-6">
                         <textarea
                           placeholder="返信を書く"
@@ -907,8 +1018,8 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                         </div>
                       </div>
                     )}
-                    {/* 返信一覧 */}
-                    {replyOpenIds.has(c.id) && (
+                      {/* 返信一覧 */}
+                      {c.id && replyOpenIds.has(c.id) && (
                       <div className="mt-2 space-y-2 pl-6">
                         {(replies[c.id] ?? []).map((r) => (
                           <div
@@ -980,9 +1091,10 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                             </div>
                           </div>
                         ))}
-                      </div>
-                    )}
-                  </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </motion.li>
