@@ -59,54 +59,54 @@ export default function AdminStoragePage() {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="mb-6 flex items-center gap-2 text-xl font-bold text-foreground">
-        <HardDrive className="h-5 w-5" />
+    <div className="p-4 md:p-6">
+      <h1 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground md:mb-6 md:text-xl">
+        <HardDrive className="h-4 w-4 md:h-5 md:w-5" />
         ストレージ整理
       </h1>
 
       {usage != null && (
-        <section className="mb-8 rounded-xl border bg-card p-4">
-          <h2 className="mb-2 text-sm font-medium text-muted-foreground">使用量</h2>
-          <p className="text-foreground">
+        <section className="mb-6 rounded-xl border bg-card p-3 md:mb-8 md:p-4">
+          <h2 className="mb-2 text-xs font-medium text-muted-foreground md:text-sm">使用量</h2>
+          <p className="text-xs text-foreground md:text-sm">
             {formatBytes(usage.usedBytes)} / {formatBytes(usage.limitBytes)} （{usage.percent}%）
           </p>
         </section>
       )}
 
-      <section className="mb-8 rounded-xl border bg-card p-4">
-        <h2 className="mb-4 text-sm font-medium text-foreground">プレビュー</h2>
-        <p className="mb-2 text-sm text-muted-foreground">
+      <section className="mb-6 rounded-xl border bg-card p-3 md:mb-8 md:p-4">
+        <h2 className="mb-3 text-xs font-medium text-foreground md:mb-4 md:text-sm">プレビュー</h2>
+        <p className="mb-2 text-xs text-muted-foreground md:text-sm">
           未参照の画像（DBで参照されていないストレージ内ファイル）と、指定日以前の操作ログを確認できます。
         </p>
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <label className="text-sm text-muted-foreground">
+        <div className="mb-4 flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:gap-3">
+          <label className="text-xs text-muted-foreground md:text-sm">
             この日付より前の操作ログを削除対象に含める:
             <input
               type="date"
               value={auditBefore}
               onChange={(e) => setAuditBefore(e.target.value)}
-              className="ml-2 rounded border bg-background px-2 py-1 text-sm"
+              className="ml-2 w-full rounded border bg-background px-2 py-1 text-xs md:w-auto md:text-sm"
             />
           </label>
           <button
             type="button"
             onClick={loadPreview}
             disabled={loadingPreview}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 md:w-auto md:text-sm"
           >
-            {loadingPreview ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {loadingPreview ? <Loader2 className="h-3 w-3 animate-spin md:h-4 md:w-4" /> : null}
             プレビューを取得
           </button>
         </div>
 
         {preview && (
-          <div className="space-y-3">
-            <p className="text-sm text-foreground">
+          <div className="space-y-2 md:space-y-3">
+            <p className="text-xs text-foreground md:text-sm">
               未参照画像: <strong>{preview.orphanPaths.length}</strong> 件
             </p>
             {preview.orphanPaths.length > 0 && (
-              <ul className="max-h-48 overflow-auto rounded border bg-muted/30 p-2 text-xs">
+              <ul className="max-h-48 overflow-auto rounded border bg-muted/30 p-2 text-[10px] md:text-xs">
                 {preview.orphanPaths.slice(0, 50).map((path) => (
                   <li key={path} className="truncate">
                     {path}
@@ -118,13 +118,13 @@ export default function AdminStoragePage() {
               </ul>
             )}
             {auditBefore && (
-              <p className="text-sm text-foreground">
+              <p className="text-xs text-foreground md:text-sm">
                 {auditBefore} より前の操作ログ: <strong>{preview.auditLogsCount}</strong> 件
               </p>
             )}
             {(preview.orphanPaths.length > 0 || (auditBefore && preview.auditLogsCount > 0)) && (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+              <div className="flex items-start gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 p-2 text-xs md:p-3 md:text-sm">
+                <AlertTriangle className="h-3 w-3 shrink-0 text-amber-600 md:h-4 md:w-4" />
                 <span>
                   上記を削除すると元に戻せません。実行する場合は「削除を実行」を押してください。
                 </span>
@@ -135,9 +135,9 @@ export default function AdminStoragePage() {
                 type="button"
                 onClick={runCleanup}
                 disabled={executing}
-                className="flex items-center gap-2 rounded-lg border border-destructive bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/20 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-destructive bg-destructive/10 px-4 py-2 text-xs font-medium text-destructive hover:bg-destructive/20 disabled:opacity-50 md:w-auto md:text-sm"
               >
-                {executing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {executing ? <Loader2 className="h-3 w-3 animate-spin md:h-4 md:w-4" /> : <Trash2 className="h-3 w-3 md:h-4 md:w-4" />}
                 削除を実行
               </button>
             )}
@@ -146,13 +146,13 @@ export default function AdminStoragePage() {
       </section>
 
       {result && (
-        <section className="rounded-xl border bg-card p-4">
-          <h2 className="mb-2 text-sm font-medium text-foreground">実行結果</h2>
-          <p className="text-sm text-foreground">
+        <section className="rounded-xl border bg-card p-3 md:p-4">
+          <h2 className="mb-2 text-xs font-medium text-foreground md:text-sm">実行結果</h2>
+          <p className="text-xs text-foreground md:text-sm">
             未参照画像: {result.orphansDeleted} 件削除 · 操作ログ: {result.auditLogsDeleted} 件削除
           </p>
           {result.errors.length > 0 && (
-            <ul className="mt-2 text-sm text-destructive">
+            <ul className="mt-2 text-xs text-destructive md:text-sm">
               {result.errors.map((e, i) => (
                 <li key={i}>{e}</li>
               ))}

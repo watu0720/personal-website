@@ -40,8 +40,8 @@ export default function AdminStatsPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-6 py-10">
-        <h1 className="mb-4 text-2xl font-bold text-foreground">訪問者統計</h1>
+      <div className="mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-10">
+        <h1 className="mb-4 text-lg font-bold text-foreground md:text-2xl">訪問者統計</h1>
         <p className="text-muted-foreground">読み込み中…</p>
       </div>
     );
@@ -49,69 +49,69 @@ export default function AdminStatsPage() {
 
   if (error || !data) {
     return (
-      <div className="mx-auto max-w-4xl px-6 py-10">
-        <h1 className="mb-4 text-2xl font-bold text-foreground">訪問者統計</h1>
+      <div className="mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-10">
+        <h1 className="mb-4 text-lg font-bold text-foreground md:text-2xl">訪問者統計</h1>
         <p className="text-muted-foreground">{error ?? "データがありません"}</p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="mb-6 text-2xl font-bold text-foreground">訪問者統計</h1>
+    <div className="mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-10">
+      <h1 className="mb-4 text-lg font-bold text-foreground md:mb-6 md:text-2xl">訪問者統計</h1>
 
-      <section className="mb-8">
-        <h2 className="mb-4 text-lg font-semibold text-foreground">サマリー</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm text-muted-foreground">今日</p>
-            <p className="mt-1 text-2xl font-bold text-foreground">PV {data.today.pv}</p>
-            <p className="text-sm text-muted-foreground">ユニーク {data.today.unique}</p>
+      <section className="mb-6 md:mb-8">
+        <h2 className="mb-3 text-base font-semibold text-foreground md:mb-4 md:text-lg">サマリー</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 md:gap-4">
+          <div className="rounded-xl border bg-card p-3 md:p-4">
+            <p className="text-xs text-muted-foreground md:text-sm">今日</p>
+            <p className="mt-1 text-xl font-bold text-foreground md:text-2xl">PV {data.today.pv}</p>
+            <p className="text-xs text-muted-foreground md:text-sm">ユニーク {data.today.unique}</p>
           </div>
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm text-muted-foreground">昨日</p>
-            <p className="mt-1 text-2xl font-bold text-foreground">PV {data.yesterday.pv}</p>
-            <p className="text-sm text-muted-foreground">ユニーク {data.yesterday.unique}</p>
+          <div className="rounded-xl border bg-card p-3 md:p-4">
+            <p className="text-xs text-muted-foreground md:text-sm">昨日</p>
+            <p className="mt-1 text-xl font-bold text-foreground md:text-2xl">PV {data.yesterday.pv}</p>
+            <p className="text-xs text-muted-foreground md:text-sm">ユニーク {data.yesterday.unique}</p>
           </div>
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm text-muted-foreground">直近7日</p>
-            <p className="mt-1 text-2xl font-bold text-foreground">PV {data.last7.pv}</p>
-            <p className="text-sm text-muted-foreground">ユニーク {data.last7.unique}</p>
+          <div className="rounded-xl border bg-card p-3 md:p-4">
+            <p className="text-xs text-muted-foreground md:text-sm">直近7日</p>
+            <p className="mt-1 text-xl font-bold text-foreground md:text-2xl">PV {data.last7.pv}</p>
+            <p className="text-xs text-muted-foreground md:text-sm">ユニーク {data.last7.unique}</p>
           </div>
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm text-muted-foreground">直近30日</p>
-            <p className="mt-1 text-2xl font-bold text-foreground">PV {data.last30.pv}</p>
-            <p className="text-sm text-muted-foreground">ユニーク {data.last30.unique}</p>
+          <div className="rounded-xl border bg-card p-3 md:p-4">
+            <p className="text-xs text-muted-foreground md:text-sm">直近30日</p>
+            <p className="mt-1 text-xl font-bold text-foreground md:text-2xl">PV {data.last30.pv}</p>
+            <p className="text-xs text-muted-foreground md:text-sm">ユニーク {data.last30.unique}</p>
           </div>
         </div>
       </section>
 
-      <section className="mb-8">
-        <h2 className="mb-4 text-lg font-semibold text-foreground">ページ別 PV ランキング</h2>
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <table className="w-full text-sm">
+      <section className="mb-6 md:mb-8">
+        <h2 className="mb-3 text-base font-semibold text-foreground md:mb-4 md:text-lg">ページ別 PV ランキング</h2>
+        <div className="overflow-x-auto rounded-xl border bg-card">
+          <table className="w-full text-xs md:text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="px-4 py-2 text-left font-medium text-foreground">順位</th>
-                <th className="px-4 py-2 text-left font-medium text-foreground">ページ</th>
-                <th className="px-4 py-2 text-right font-medium text-foreground">PV</th>
-                <th className="px-4 py-2 text-right font-medium text-foreground">ユニーク</th>
+                <th className="px-2 py-2 text-left font-medium text-foreground md:px-4">順位</th>
+                <th className="px-2 py-2 text-left font-medium text-foreground md:px-4">ページ</th>
+                <th className="px-2 py-2 text-right font-medium text-foreground md:px-4">PV</th>
+                <th className="px-2 py-2 text-right font-medium text-foreground md:px-4">ユニーク</th>
               </tr>
             </thead>
             <tbody>
               {data.pageRankingPv.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+                  <td colSpan={4} className="px-2 py-4 text-center text-muted-foreground md:px-4 md:py-6">
                     データがありません
                   </td>
                 </tr>
               ) : (
                 data.pageRankingPv.map((row, i) => (
                   <tr key={row.page_key} className="border-b last:border-0">
-                    <td className="px-4 py-2 text-muted-foreground">{i + 1}</td>
-                    <td className="px-4 py-2 font-medium text-foreground">{label(row.page_key)}</td>
-                    <td className="px-4 py-2 text-right text-foreground">{row.pv}</td>
-                    <td className="px-4 py-2 text-right text-foreground">{row.unique}</td>
+                    <td className="px-2 py-2 text-muted-foreground md:px-4">{i + 1}</td>
+                    <td className="px-2 py-2 font-medium text-foreground md:px-4">{label(row.page_key)}</td>
+                    <td className="px-2 py-2 text-right text-foreground md:px-4">{row.pv}</td>
+                    <td className="px-2 py-2 text-right text-foreground md:px-4">{row.unique}</td>
                   </tr>
                 ))
               )}
@@ -121,31 +121,31 @@ export default function AdminStatsPage() {
       </section>
 
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-foreground">ページ別 ユニーク ランキング</h2>
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <table className="w-full text-sm">
+        <h2 className="mb-3 text-base font-semibold text-foreground md:mb-4 md:text-lg">ページ別 ユニーク ランキング</h2>
+        <div className="overflow-x-auto rounded-xl border bg-card">
+          <table className="w-full text-xs md:text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="px-4 py-2 text-left font-medium text-foreground">順位</th>
-                <th className="px-4 py-2 text-left font-medium text-foreground">ページ</th>
-                <th className="px-4 py-2 text-right font-medium text-foreground">PV</th>
-                <th className="px-4 py-2 text-right font-medium text-foreground">ユニーク</th>
+                <th className="px-2 py-2 text-left font-medium text-foreground md:px-4">順位</th>
+                <th className="px-2 py-2 text-left font-medium text-foreground md:px-4">ページ</th>
+                <th className="px-2 py-2 text-right font-medium text-foreground md:px-4">PV</th>
+                <th className="px-2 py-2 text-right font-medium text-foreground md:px-4">ユニーク</th>
               </tr>
             </thead>
             <tbody>
               {data.pageRankingUnique.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+                  <td colSpan={4} className="px-2 py-4 text-center text-muted-foreground md:px-4 md:py-6">
                     データがありません
                   </td>
                 </tr>
               ) : (
                 data.pageRankingUnique.map((row, i) => (
                   <tr key={row.page_key} className="border-b last:border-0">
-                    <td className="px-4 py-2 text-muted-foreground">{i + 1}</td>
-                    <td className="px-4 py-2 font-medium text-foreground">{label(row.page_key)}</td>
-                    <td className="px-4 py-2 text-right text-foreground">{row.pv}</td>
-                    <td className="px-4 py-2 text-right text-foreground">{row.unique}</td>
+                    <td className="px-2 py-2 text-muted-foreground md:px-4">{i + 1}</td>
+                    <td className="px-2 py-2 font-medium text-foreground md:px-4">{label(row.page_key)}</td>
+                    <td className="px-2 py-2 text-right text-foreground md:px-4">{row.pv}</td>
+                    <td className="px-2 py-2 text-right text-foreground md:px-4">{row.unique}</td>
                   </tr>
                 ))
               )}

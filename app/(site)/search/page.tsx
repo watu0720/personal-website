@@ -14,6 +14,8 @@ import {
 } from "@/lib/services/niconico";
 import { PageMotion } from "@/components/motion/PageMotion";
 import { StaggerList } from "@/components/motion/StaggerList";
+import { SearchFilters } from "@/components/search-filters";
+import { SearchForm } from "@/components/search-form";
 
 export const metadata: Metadata = {
   title: "サイト内検索 | わっつーのHP",
@@ -22,6 +24,7 @@ export const metadata: Metadata = {
 type SearchParams = {
   q?: string;
   mode?: string;
+  types?: string; // comma-separated: page,comment,youtube,niconico,github
 };
 
 type PageHit = {
@@ -85,6 +88,8 @@ export default async function SearchPage(props: any) {
   const { searchParams } = props as { searchParams: SearchParams };
   const q = (searchParams.q ?? "").trim();
   const mode = searchParams.mode === "word" ? "word" : "partial";
+  const typesParam = searchParams.types ?? "page,comment,youtube,niconico,github";
+  const enabledTypes = new Set(typesParam.split(",").map((t) => t.trim()).filter(Boolean));
 
   if (!q) {
     return (
@@ -342,11 +347,23 @@ export default async function SearchPage(props: any) {
     });
   }
 
+  // フィルタ適用
+  const filteredPageHits = enabledTypes.has("page") ? pageHits : [];
+  const filteredCommentHits = enabledTypes.has("comment") ? commentHits : [];
+  const filteredVideoHits = enabledTypes.has("youtube") || enabledTypes.has("niconico")
+    ? videoHits.filter((v) => {
+        if (v.service === "youtube" && !enabledTypes.has("youtube")) return false;
+        if (v.service === "niconico" && !enabledTypes.has("niconico")) return false;
+        return true;
+      })
+    : [];
+  const filteredRepoHits = enabledTypes.has("github") ? repoHits : [];
+
   const hasAny =
-    pageHits.length > 0 ||
-    commentHits.length > 0 ||
-    videoHits.length > 0 ||
-    repoHits.length > 0;
+    filteredPageHits.length > 0 ||
+    filteredCommentHits.length > 0 ||
+    filteredVideoHits.length > 0 ||
+    filteredRepoHits.length > 0;
 
   return (
     <PageMotion>
@@ -354,51 +371,9 @@ export default async function SearchPage(props: any) {
       <h1 className="mb-2 text-xl font-bold text-foreground md:text-2xl">
         サイト内検索
       </h1>
-      <form
-        action="/search"
-        method="GET"
-        className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border bg-card px-3 py-2 text-xs md:text-sm"
-      >
-        <div className="flex items-center gap-2">
-          <label className="text-muted-foreground">検索語</label>
-          <input
-            type="search"
-            name="q"
-            defaultValue={q}
-            placeholder="キーワードを入力"
-            className="w-40 rounded-lg border border-input bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary md:w-64"
-          />
-        </div>
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <span>モード:</span>
-          <label className="flex cursor-pointer items-center gap-1">
-            <input
-              type="radio"
-              name="mode"
-              value="partial"
-              defaultChecked={mode === "partial"}
-              className="rounded-full border-input"
-            />
-            部分一致
-          </label>
-          <label className="flex cursor-pointer items-center gap-1">
-            <input
-              type="radio"
-              name="mode"
-              value="word"
-              defaultChecked={mode === "word"}
-              className="rounded-full border-input"
-            />
-            単語完全一致
-          </label>
-        </div>
-        <button
-          type="submit"
-          className="btn-motion rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          検索
-        </button>
-      </form>
+      <SearchForm initialQ={q} initialMode={mode} initialTypes={typesParam} />
+      <SearchFilters initialTypes={typesParam} q={q} mode={mode} />
+
       <p className="mb-4 text-xs text-muted-foreground md:text-sm">
         現在の検索語:「{q}」 / モード: {mode === "word" ? "単語完全一致" : "部分一致"}
       </p>
@@ -410,11 +385,11 @@ export default async function SearchPage(props: any) {
       )}
 
       <StaggerList>
-      {pageHits.length > 0 && (
+      {filteredPageHits.length > 0 && (
         <section className="mb-8">
           <h2 className="mb-3 text-sm font-semibold text-foreground">ページ</h2>
           <ul className="space-y-2">
-            {pageHits.map((hit, i) => (
+            {filteredPageHits.map((hit, i) => (
               <li key={`${hit.pageKey}-${i}`} data-stagger-item className="rounded-lg border bg-card p-3">
                 <Link
                   href={hit.href}
@@ -431,11 +406,11 @@ export default async function SearchPage(props: any) {
         </section>
       )}
 
-      {commentHits.length > 0 && (
+      {filteredCommentHits.length > 0 && (
         <section className="mb-8">
           <h2 className="mb-3 text-sm font-semibold text-foreground">コメント</h2>
           <ul className="space-y-2">
-            {commentHits.map((hit) => (
+            {filteredCommentHits.map((hit) => (
               <li key={hit.id} data-stagger-item className="rounded-lg border bg-card p-3">
                 <Link
                   href={hit.href}
@@ -452,13 +427,13 @@ export default async function SearchPage(props: any) {
         </section>
       )}
 
-      {videoHits.length > 0 && (
+      {filteredVideoHits.length > 0 && (
         <section className="mb-8">
           <h2 className="mb-3 text-sm font-semibold text-foreground">
             動画（YouTube / ニコニコ）
           </h2>
           <ul className="space-y-2">
-            {videoHits.map((hit, i) => (
+            {filteredVideoHits.map((hit, i) => (
               <li key={`${hit.service}-${hit.url}-${i}`} data-stagger-item className="rounded-lg border bg-card p-3">
                 <a
                   href={hit.url}
@@ -477,11 +452,11 @@ export default async function SearchPage(props: any) {
         </section>
       )}
 
-      {repoHits.length > 0 && (
+      {filteredRepoHits.length > 0 && (
         <section className="mb-8">
           <h2 className="mb-3 text-sm font-semibold text-foreground">GitHub</h2>
           <ul className="space-y-2">
-            {repoHits.map((hit) => (
+            {filteredRepoHits.map((hit) => (
               <li key={hit.url} data-stagger-item className="rounded-lg border bg-card p-3">
                 <a
                   href={hit.url}

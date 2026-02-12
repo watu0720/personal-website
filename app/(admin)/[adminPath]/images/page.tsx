@@ -93,11 +93,11 @@ export default function AdminImagesPage() {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="mb-6 text-xl font-bold text-foreground">画像管理</h1>
+    <div className="p-4 md:p-6">
+      <h1 className="mb-4 text-lg font-bold text-foreground md:mb-6 md:text-xl">画像管理</h1>
       {message && (
         <p
-          className={`mb-4 text-sm ${
+          className={`mb-4 text-xs md:text-sm ${
             message.type === "ok"
               ? "text-green-600 dark:text-green-400"
               : "text-destructive"
@@ -107,10 +107,10 @@ export default function AdminImagesPage() {
         </p>
       )}
 
-      <div className="space-y-8">
-        <section className="rounded-xl border bg-card p-6">
-          <h2 className="mb-2 font-semibold text-foreground">プロフィール画像</h2>
-          <p className="mb-4 text-sm text-muted-foreground">
+      <div className="space-y-6 md:space-y-8">
+        <section className="rounded-xl border bg-card p-4 md:p-6">
+          <h2 className="mb-2 text-sm font-semibold text-foreground md:text-base">プロフィール画像</h2>
+          <p className="mb-4 text-xs text-muted-foreground md:text-sm">
             プロフィール画面に表示されます。10MBまで、png/gif/jpg/jpeg/webp。
           </p>
           <input
@@ -127,15 +127,15 @@ export default function AdminImagesPage() {
             type="button"
             onClick={() => profileInputRef.current?.click()}
             disabled={uploading}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="w-full rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 md:w-auto md:text-sm"
           >
             {uploading ? "アップロード中..." : "ファイルを選択してアップロード"}
           </button>
         </section>
 
-        <section className="rounded-xl border bg-card p-6">
-          <h2 className="mb-2 font-semibold text-foreground">ヘッダー画像（Homeヒーロー）</h2>
-          <p className="mb-4 text-sm text-muted-foreground">
+        <section className="rounded-xl border bg-card p-4 md:p-6">
+          <h2 className="mb-2 text-sm font-semibold text-foreground md:text-base">ヘッダー画像（Homeヒーロー）</h2>
+          <p className="mb-4 text-xs text-muted-foreground md:text-sm">
             Home画面のヒーローに表示されます。10MBまで、png/gif/jpg/jpeg/webp。
           </p>
           <input
@@ -152,7 +152,7 @@ export default function AdminImagesPage() {
             type="button"
             onClick={() => headerInputRef.current?.click()}
             disabled={uploading}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="w-full rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 md:w-auto md:text-sm"
           >
             {uploading ? "アップロード中..." : "ファイルを選択してアップロード"}
           </button>

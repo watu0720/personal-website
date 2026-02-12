@@ -20,6 +20,7 @@ export default function AdminAuditLogsPage() {
   const [actionFilter, setActionFilter] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [keyword, setKeyword] = useState("");
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -30,34 +31,85 @@ export default function AdminAuditLogsPage() {
     if (actionFilter) params.set("action", actionFilter);
     if (from) params.set("from", from);
     if (to) params.set("to", to);
+    if (keyword) params.set("keyword", keyword);
     const res = await fetch(`/api/admin/audit-logs?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
-    if (Array.isArray(data)) setList(data);
+    if (Array.isArray(data)) {
+      // キーワード検索（クライアント側フィルタ）
+      if (keyword) {
+        const kw = keyword.toLowerCase();
+        const filtered = data.filter((row: AuditRow) => {
+          return (
+            row.action.toLowerCase().includes(kw) ||
+            row.target_type.toLowerCase().includes(kw) ||
+            row.target_id.toLowerCase().includes(kw) ||
+            JSON.stringify(row.meta).toLowerCase().includes(kw)
+          );
+        });
+        setList(filtered);
+      } else {
+        setList(data);
+      }
+    }
     setLoading(false);
-  }, [supabase.auth, actionFilter, from, to]);
+  }, [supabase.auth, actionFilter, from, to, keyword]);
 
   useEffect(() => {
     fetchList();
   }, [fetchList]);
 
   return (
-    <div className="p-6">
-      <h1 className="mb-6 text-xl font-bold text-foreground">操作ログ</h1>
-      <div className="mb-4 flex flex-wrap gap-3">
-        <input type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm" />
-        <input type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm" />
-        <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm">
-          <option value="">action: すべて</option>
-          <option value="page.update">page.update</option>
-          <option value="asset.update">asset.update</option>
-          <option value="comment.hide">comment.hide</option>
-          <option value="comment.unhide">comment.unhide</option>
-          <option value="comment.delete">comment.delete</option>
-          <option value="comment.heart">comment.heart</option>
-        </select>
-        <button type="button" onClick={() => fetchList()} className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground hover:bg-primary/90">再取得</button>
+    <div className="p-4 md:p-6">
+      <h1 className="mb-4 text-lg font-bold text-foreground md:mb-6 md:text-xl">操作ログ</h1>
+      <div className="mb-4 space-y-2 md:space-y-3">
+        <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:gap-3">
+          <input
+            type="datetime-local"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            className="w-full rounded-lg border bg-background px-3 py-2 text-xs md:w-auto md:text-sm"
+            placeholder="開始日時"
+          />
+          <input
+            type="datetime-local"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            className="w-full rounded-lg border bg-background px-3 py-2 text-xs md:w-auto md:text-sm"
+            placeholder="終了日時"
+          />
+          <select
+            value={actionFilter}
+            onChange={(e) => setActionFilter(e.target.value)}
+            className="w-full rounded-lg border bg-background px-3 py-2 text-xs md:w-auto md:text-sm"
+            aria-label="アクション種別でフィルタ"
+            title="アクション種別でフィルタ"
+          >
+            <option value="">action: すべて</option>
+            <option value="page.update">page.update</option>
+            <option value="asset.update">asset.update</option>
+            <option value="comment.hide">comment.hide</option>
+            <option value="comment.unhide">comment.unhide</option>
+            <option value="comment.delete">comment.delete</option>
+            <option value="comment.heart">comment.heart</option>
+            <option value="comment_reply.heart">comment_reply.heart</option>
+          </select>
+          <input
+            type="text"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="キーワード検索"
+            className="w-full rounded-lg border bg-background px-3 py-2 text-xs md:w-auto md:text-sm"
+          />
+          <button
+            type="button"
+            onClick={() => fetchList()}
+            className="w-full rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground hover:bg-primary/90 md:w-auto md:text-sm"
+          >
+            再取得
+          </button>
+        </div>
       </div>
       {loading ? (
         <p className="text-muted-foreground">読み込み中...</p>

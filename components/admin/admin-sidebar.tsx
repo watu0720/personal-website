@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Image, MessageSquare, Flag, ScrollText, BarChart3, ListTodo, HardDrive, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { LayoutDashboard, FileText, Image, MessageSquare, Flag, ScrollText, BarChart3, ListTodo, HardDrive, ExternalLink, Key, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -15,6 +16,7 @@ const NAV = [
   { label: "操作ログ", href: "/audit-logs", icon: ScrollText },
   { label: "改訂履歴", href: "/changelog", icon: ListTodo },
   { label: "ストレージ整理", href: "/storage", icon: HardDrive },
+  { label: "APIキー管理", href: "/api-keys", icon: Key },
 ] as const;
 
 type AdminSidebarProps = {
@@ -24,44 +26,83 @@ type AdminSidebarProps = {
 export function AdminSidebar({ adminPath }: AdminSidebarProps) {
   const pathname = usePathname();
   const base = `/${adminPath}`;
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <aside className="w-56 shrink-0 border-r bg-card p-4">
-      <nav className="flex flex-col gap-1">
-        {NAV.map(({ label, href, icon: Icon }) => {
-          const path = href ? `${base}${href}` : base;
-          const active =
-            href === ""
-              ? pathname === base || pathname === `${base}/`
-              : pathname.startsWith(path);
-          return (
-            <Link
-              key={path}
-              href={path}
-              className={cn(
-                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </Link>
-          );
-        })}
-      </nav>
-      <div className="mt-6 border-t pt-4">
-        <a
-          href="/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+    <>
+      {/* モバイルメニューボタン */}
+      <button
+        type="button"
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        className="flex items-center gap-2 border-b bg-card p-3 md:hidden"
+        aria-label="メニューを開く"
+      >
+        <Menu className="h-5 w-5" />
+        <span className="text-sm font-medium">メニュー</span>
+      </button>
+
+      {/* サイドバー */}
+      <aside className={cn(
+        "fixed inset-y-0 left-0 z-40 w-56 shrink-0 border-r bg-card p-4 transition-transform md:relative md:translate-x-0",
+        mobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+      )}>
+        {/* モバイル閉じるボタン */}
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(false)}
+          className="mb-4 flex items-center gap-2 md:hidden"
+          aria-label="メニューを閉じる"
         >
-          <ExternalLink className="h-4 w-4" />
-          サイトを見る
-        </a>
-      </div>
-    </aside>
+          <X className="h-5 w-5" />
+          <span className="text-sm font-medium">閉じる</span>
+        </button>
+
+        <nav className="flex flex-col gap-1">
+          {NAV.map(({ label, href, icon: Icon }) => {
+            const path = href ? `${base}${href}` : base;
+            const active =
+              href === ""
+                ? pathname === base || pathname === `${base}/`
+                : pathname.startsWith(path);
+            return (
+              <Link
+                key={path}
+                href={path}
+                onClick={() => setMobileMenuOpen(false)}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors md:text-sm",
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="mt-6 border-t pt-4">
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:text-sm"
+          >
+            <ExternalLink className="h-4 w-4" />
+            サイトを見る
+          </a>
+        </div>
+      </aside>
+
+      {/* モバイルオーバーレイ */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+    </>
   );
 }

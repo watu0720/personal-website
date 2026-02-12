@@ -17,6 +17,24 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     const q = search.trim();
     if (!q) return;
     const params = new URLSearchParams({ q, mode: "partial" });
+    // 現在のURLからtypesパラメータを取得して維持
+    if (typeof window !== "undefined") {
+      const currentParams = new URLSearchParams(window.location.search);
+      const types = currentParams.get("types");
+      if (types) {
+        params.set("types", types);
+      }
+      try {
+        const key = "recent_search_words";
+        const raw = window.localStorage.getItem(key);
+        const arr = raw ? ((JSON.parse(raw) as string[]) || []) : [];
+        const filtered = Array.isArray(arr) ? arr.filter((w) => w !== q) : [];
+        const next = [q, ...filtered].slice(0, 10);
+        window.localStorage.setItem(key, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+    }
     router.push(`/search?${params.toString()}`);
     onClose();
     setSearch("");
@@ -57,7 +75,10 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           />
           <button
             onClick={handleSearchSubmit}
-            className="btn-motion shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            disabled={!search.trim()}
+            className="btn-motion shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="検索を実行"
+            title="検索を実行"
           >
             <Search className="h-4 w-4" />
           </button>
