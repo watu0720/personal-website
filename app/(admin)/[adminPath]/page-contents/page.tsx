@@ -97,13 +97,15 @@ export default function AdminPageContentsPage() {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="mb-6 text-xl font-bold text-foreground">ページ編集</h1>
-      <div className="mb-6 flex flex-wrap items-center gap-3">
+    <div className="p-4 md:p-6">
+      <h1 className="mb-4 text-lg font-bold text-foreground md:mb-6 md:text-xl">ページ編集</h1>
+      <div className="mb-4 flex flex-col gap-2 md:mb-6 md:flex-row md:flex-wrap md:items-center md:gap-3">
         <select
-          className="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs md:w-auto md:text-sm"
           value={pageKey}
           onChange={(e) => setPageKey(e.target.value)}
+          aria-label="ページを選択"
+          title="ページを選択"
         >
           {PAGES.map((p) => (
             <option key={p.key} value={p.key}>
@@ -115,7 +117,7 @@ export default function AdminPageContentsPage() {
           type="button"
           onClick={onSave}
           disabled={saving}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          className="w-full rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 md:w-auto md:text-sm"
         >
           {saving ? "保存中..." : "保存"}
         </button>
@@ -123,8 +125,8 @@ export default function AdminPageContentsPage() {
           <span
             className={
               message.type === "ok"
-                ? "text-sm text-green-600 dark:text-green-400"
-                : "text-sm text-destructive"
+                ? "text-xs text-green-600 dark:text-green-400 md:text-sm"
+                : "text-xs text-destructive md:text-sm"
             }
           >
             {message.text}
@@ -133,56 +135,58 @@ export default function AdminPageContentsPage() {
       </div>
 
       <div className="mb-4">
-        <label className="mb-1 block text-sm font-medium text-foreground">
+        <label htmlFor="page-title" className="mb-1 block text-xs font-medium text-foreground md:text-sm">
           タイトル
         </label>
         <input
+          id="page-title"
           type="text"
-          className="w-full max-w-md rounded-lg border border-input bg-background px-3 py-2 text-sm"
+          className="w-full max-w-md rounded-lg border border-input bg-background px-3 py-2 text-xs md:text-sm"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          placeholder="ページタイトルを入力"
         />
       </div>
 
       <div className="mb-4">
-        <label className="mb-1 block text-sm font-medium text-foreground">
+        <label className="mb-1 block text-xs font-medium text-foreground md:text-sm">
           本文（HTML）
         </label>
         <RichTextEditor apiKey={apiKey} value={html} onChange={setHtml} />
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-[10px] text-muted-foreground md:text-xs">
         pre/code はそのまま保持されます。リンクは http/https のみ許可。
       </p>
 
       {!loading && list.length > 0 && (
-        <section className="mt-8">
-          <h2 className="mb-2 text-sm font-semibold text-foreground">
+        <section className="mt-6 md:mt-8">
+          <h2 className="mb-2 text-xs font-semibold text-foreground md:text-sm">
             一覧（最終更新）
           </h2>
           <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs md:text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium">ページ</th>
-                  <th className="px-4 py-2 text-left font-medium">タイトル</th>
-                  <th className="px-4 py-2 text-left font-medium">更新日時</th>
-                  <th className="px-4 py-2 text-left font-medium">更新者</th>
+                  <th className="px-2 py-2 text-left font-medium md:px-4">ページ</th>
+                  <th className="px-2 py-2 text-left font-medium md:px-4">タイトル</th>
+                  <th className="px-2 py-2 text-left font-medium md:px-4">更新日時</th>
+                  <th className="px-2 py-2 text-left font-medium md:px-4">更新者</th>
                 </tr>
               </thead>
               <tbody>
                 {list.map((row) => (
                   <tr key={row.page_key} className="border-t">
-                    <td className="px-4 py-2">
+                    <td className="px-2 py-2 md:px-4">
                       {PAGES.find((p) => p.key === row.page_key)?.label ?? row.page_key}
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-2 py-2 md:px-4">
                       {row.title || "未設定"}
                     </td>
-                    <td className="px-4 py-2 text-muted-foreground">
+                    <td className="px-2 py-2 text-muted-foreground md:px-4">
                       {formatDate(row.updated_at)}
                     </td>
-                    <td className="px-4 py-2 text-muted-foreground">
+                    <td className="px-2 py-2 text-muted-foreground md:px-4">
                       {row.updated_by ? `${row.updated_by.slice(0, 8)}…` : "—"}
                     </td>
                   </tr>

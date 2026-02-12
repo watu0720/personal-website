@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { ThumbsUp, ThumbsDown, Heart, Flag, Send, Pencil } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Heart, Flag, Send, Pencil, MessageSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { staggerContainer, staggerItem, transitionPresets } from "@/lib/animations";
 import { getOrCreateFingerprint } from "@/lib/fingerprint";
@@ -44,6 +44,7 @@ type PageKey = (typeof PAGE_KEYS)[number];
 
 type CommentItem = {
   id: string;
+  client_id?: string; // Optimistic UI用の一時ID
   page_key: string;
   author_type: "guest" | "user";
   author_user_id: string | null;
@@ -59,6 +60,22 @@ type CommentItem = {
   good_count: number;
   not_good_count: number;
   my_reaction: "good" | "not_good" | null;
+  reply_count?: number;
+};
+
+type ReplyItem = {
+  id: string;
+  parent_comment_id: string;
+  page_key: string;
+  author_user_id: string;
+  author_name: string;
+  author_avatar_url: string | null;
+  body: string;
+  created_at: string;
+  good_count: number;
+  not_good_count: number;
+  my_reaction: "good" | "not_good" | null;
+  admin_heart: boolean;
 };
 
 export function CommentSection({ pageKey }: { pageKey: PageKey }) {
@@ -82,6 +99,12 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
   const [pulseTargetId, setPulseTargetId] = useState<string | null>(null);
   const fetchVersionRef = useRef(0);
   const cardToPulseRef = useRef<HTMLLIElement>(null);
+  const [replyOpenIds, setReplyOpenIds] = useState<Set<string>>(new Set()); // 返信一覧の表示状態
+  const [replyInputOpenIds, setReplyInputOpenIds] = useState<Set<string>>(new Set()); // 返信入力欄の表示状態
+  const [replies, setReplies] = useState<Record<string, ReplyItem[]>>({});
+  const [replyBodyById, setReplyBodyById] = useState<Record<string, string>>({});
+  const [sort, setSort] = useState<"new" | "old" | "top">("new");
+  const [hasOptimisticComment, setHasOptimisticComment] = useState(false); // Optimisticコメントの存在フラグ
 
   const fingerprint = getOrCreateFingerprint();
   const searchParams = useSearchParams();
@@ -93,13 +116,15 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
 
   const fetchComments = useCallback(async () => {
     const version = ++fetchVersionRef.current;
-    const res = await fetch(
-      `/api/comments?page_key=${encodeURIComponent(pageKey)}&limit=21`,
-      {
-        cache: "no-store",
-        headers: fingerprint ? { "X-Fingerprint": fingerprint } : {},
-      }
-    );
+    const params = new URLSearchParams({
+      page_key: pageKey,
+      limit: "21",
+      sort,
+    });
+    const res = await fetch(`/api/comments?${params.toString()}`, {
+      cache: "no-store",
+      headers: fingerprint ? { "X-Fingerprint": fingerprint } : {},
+    });
     const data = await res.json();
     if (fetchVersionRef.current !== version) {
       // もっと新しいリクエスト結果があるので破棄
@@ -132,7 +157,7 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
       }
     }
     setLoading(false);
-  }, [pageKey, fingerprint]);
+  }, [pageKey, fingerprint, sort]);
 
   useEffect(() => {
     fetchComments();
@@ -183,6 +208,53 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
     }
     setError(null);
     setSubmitting(true);
+
+    // Optimistic UI: client_idを生成（クライアント側でのみ実行）
+    // crypto.randomUUID()のフォールバック実装
+    const generateClientId = () => {
+      if (typeof crypto !== "undefined" && crypto.randomUUID) {
+        return `cmt_local_${crypto.randomUUID()}`;
+      }
+      // フォールバック: タイムスタンプ + ランダム文字列
+      return `cmt_local_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    };
+    const clientId = generateClientId();
+    const now = new Date().toISOString();
+
+    // Optimistic コメントを生成（先頭に追加）
+    // 仕様書4-2: idは未確定、client_idのみを持つ
+    const optimisticComment: CommentItem = {
+      id: "", // 未確定（仕様書通り）
+      client_id: clientId,
+      page_key: pageKey,
+      author_type: tab,
+      author_user_id: tab === "user" ? (user?.id ?? null) : null,
+      guest_name: tab === "guest" ? guestName.trim() : null,
+      author_name:
+        tab === "user"
+          ? ((user?.displayName ||
+              user?.email?.split("@")[0] ||
+              "ログインユーザー") as string)
+          : null,
+      author_avatar_url: tab === "user" ? user?.avatarUrl ?? null : null,
+      body: bodyTrim,
+      is_hidden: false,
+      hidden_reason: null,
+      admin_heart: false,
+      created_at: now,
+      edited_at: null,
+      good_count: 0,
+      not_good_count: 0,
+      my_reaction: null,
+    };
+
+    // Optimistic コメントを先頭に追加（仕様書4-2: 新しい順のため先頭に挿入）
+    setHasOptimisticComment(true);
+    setComments((prev) => {
+      const next = [optimisticComment, ...prev];
+      return next.slice(0, 20);
+    });
+
     try {
       const payload = {
         page_key: pageKey,
@@ -197,19 +269,23 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
       });
       const data = await res.json();
       if (!res.ok) {
+        // 失敗時: Optimisticコメントは残す（仕様書5-5参照）
         setError(data?.error ?? "投稿に失敗しました。");
         return;
       }
       if (tab === "guest" && data.edit_token && data.id) {
         setStoredEditToken(data.id, data.edit_token);
       }
-       // サーバー側で保存されたコメントをもとに、即座に一覧へ反映（楽観的更新）
+
+      // サーバー応答後: Optimisticコメントを確定コメントで置換
       const createdAt =
         typeof data.created_at === "string"
           ? data.created_at
           : new Date().toISOString();
-      const newComment: CommentItem = {
+      const confirmedComment: CommentItem = {
         id: data.id as string,
+        // client_idは削除しない（置換時のkey一致のため一時的に保持、次のレンダリングで削除される）
+        client_id: undefined,
         page_key: pageKey,
         author_type: tab,
         author_user_id: tab === "user" ? (user?.id ?? null) : null,
@@ -231,12 +307,144 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
         not_good_count: 0,
         my_reaction: null,
       };
-      setComments((prev) => [newComment, ...prev].slice(0, 20));
+
+      // client_idで一致するOptimisticコメントを置換（仕様書4-4）
+      setHasOptimisticComment(false);
+      setComments((prev) => {
+        const index = prev.findIndex((c) => c.client_id === clientId);
+        if (index === -1) {
+          // 見つからない場合は先頭に追加（フォールバック）
+          return [confirmedComment, ...prev].slice(0, 20);
+        }
+        // 同一位置で確定コメントに置換（仕様書4-4: 置換方式を厳守）
+        // 配列を直接変更せず、新しい配列を作成して置換することで、Reactの再レンダリングを最適化
+        const before = prev.slice(0, index);
+        const after = prev.slice(index + 1);
+        return [...before, confirmedComment, ...after];
+      });
+
       setBody("");
       setGuestName("");
       setPulseTargetId(data.id as string);
+
+      // 送信成功後、自分のコメント要素にscrollIntoViewを実行（仕様書6-1）
+      // Reactの状態更新とDOMの更新を待つため、次のフレームで実行
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const element = document.querySelector(`[data-comment-id="${data.id}"]`);
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+        });
+      });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function loadReplies(commentId: string) {
+    const res = await fetch(`/api/comments/${commentId}/replies`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as ReplyItem[];
+    setReplies((prev) => ({ ...prev, [commentId]: data }));
+  }
+
+  async function submitReply(parentId: string) {
+    const replyBody = (replyBodyById[parentId] ?? "").trim();
+    if (!replyBody) {
+      setError("返信の本文を入力してください。");
+      return;
+    }
+    if (!user) {
+      setError("返信するにはログインが必要です。");
+      return;
+    }
+    setError(null);
+    const res = await fetch(`/api/comments/${parentId}/replies`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: replyBody }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data?.error ?? "返信の投稿に失敗しました。");
+      return;
+    }
+    setReplyBodyById((prev) => ({ ...prev, [parentId]: "" }));
+    setReplyInputOpenIds((prev) => {
+      const next = new Set(prev);
+      next.delete(parentId);
+      return next;
+    });
+    const newReply: ReplyItem = {
+      ...data,
+      good_count: 0,
+      not_good_count: 0,
+      my_reaction: null,
+      admin_heart: false,
+    };
+    setReplies((prev) => ({
+      ...prev,
+      [parentId]: [...(prev[parentId] ?? []), newReply],
+    }));
+    // 返信件数を更新
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === parentId
+          ? { ...c, reply_count: (c.reply_count ?? 0) + 1 }
+          : c
+      )
+    );
+    // 返信一覧を自動的に開く
+    if (!replyOpenIds.has(parentId)) {
+      setReplyOpenIds((prev) => {
+        const next = new Set(prev);
+        next.add(parentId);
+        return next;
+      });
+      if (!replies[parentId]) {
+        await loadReplies(parentId);
+      }
+    }
+  }
+
+  async function toggleReactionForReply(replyId: string, type: "good" | "not_good") {
+    const res = await fetch(`/api/comments/${replyId}/reaction`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(fingerprint ? { "X-Fingerprint": fingerprint } : {}),
+      },
+      body: JSON.stringify({
+        reaction_type: type,
+        ...(!user && fingerprint ? { fingerprint } : {}),
+      }),
+    });
+    if (res.ok) {
+      // 返信一覧を再取得
+      const parentId = Object.keys(replies).find((pid) =>
+        replies[pid]?.some((r) => r.id === replyId)
+      );
+      if (parentId) {
+        await loadReplies(parentId);
+      }
+    }
+  }
+
+  async function toggleAdminHeartForReply(replyId: string) {
+    if (!isAdmin) return;
+    const res = await fetch(`/api/admin/comments/${replyId}/heart`, {
+      method: "POST",
+    });
+    if (res.ok) {
+      const parentId = Object.keys(replies).find((pid) =>
+        replies[pid]?.some((r) => r.id === replyId)
+      );
+      if (parentId) {
+        await loadReplies(parentId);
+      }
     }
   }
 
@@ -313,6 +521,28 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
     fetchComments();
   }
 
+  const [linkWarningUrl, setLinkWarningUrl] = useState<string | null>(null);
+  const [linkWarningOpen, setLinkWarningOpen] = useState(false);
+
+  function isSuspiciousUrl(url: string): boolean {
+    const lower = url.toLowerCase();
+    if (lower.includes("bit.ly") || lower.includes("tinyurl") || lower.includes("t.co")) {
+      return true;
+    }
+    if (lower.includes("xn--")) return true;
+    if (url.length > 120) return true;
+    return false;
+  }
+
+  function handleClickLink(url: string) {
+    if (isSuspiciousUrl(url)) {
+      setLinkWarningUrl(url);
+      setLinkWarningOpen(true);
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  }
+
   function formatBody(text: string): React.ReactNode {
     const parts: React.ReactNode[] = [];
     const urlRe = /(https?:\/\/[^\s]+)/gi;
@@ -324,9 +554,14 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
       }
       const url = m[1];
       parts.push(
-        <a key={m.index} href={url} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+        <button
+          key={m.index}
+          type="button"
+          onClick={() => handleClickLink(url)}
+          className="text-primary underline break-all"
+        >
           {shortenUrl(url)}
-        </a>
+        </button>
       );
       lastIndex = m.index + url.length;
     }
@@ -337,7 +572,7 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
   const displayName = user ? (user.displayName || user.email?.split("@")[0] || "ユーザー") : "";
 
   return (
-    <section className="mt-10 border-t pt-8">
+    <section className="">
       <div className="mb-4 flex items-center gap-3">
         <h2 className="text-lg font-bold text-foreground">コメント</h2>
         {hasLog && (
@@ -349,6 +584,20 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
           </Link>
         )}
       </div>
+
+      {/* コメント利用ガイド */}
+      <details className="mb-4 rounded-lg border bg-muted/40 p-3 text-sm">
+        <summary className="cursor-pointer select-none font-medium text-foreground">
+          コメント利用ガイド
+        </summary>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+          <li>ゲスト名：2〜20文字</li>
+          <li>リンク： http / https のみ許可、1コメントあたり最大2件まで</li>
+          <li>誹謗中傷・スパムは禁止です</li>
+          <li>通報内容は管理者のみが確認します</li>
+          <li>編集：本人のみが編集できます</li>
+        </ul>
+      </details>
 
       <div className="mb-4 flex gap-2">
         <button
@@ -379,32 +628,67 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
               placeholder="名前（2〜20文字）"
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
-              className="w-full max-w-xs rounded-lg border border-input bg-background px-3 py-2 text-sm"
+              className="w-full max-w-xs rounded-lg border border-input bg-background px-3 py-2 text-xs md:text-sm"
               maxLength={20}
             />
           )}
           {tab === "user" && user && (
-            <p className="text-sm text-muted-foreground">表示名: {displayName}</p>
+            <p className="text-xs text-muted-foreground md:text-sm">表示名: {displayName}</p>
           )}
           <textarea
             placeholder="本文（http/https のリンクのみ許可）"
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs md:text-sm"
             rows={3}
           />
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-xs text-destructive md:text-sm">{error}</p>}
           <button
             type="button"
             onClick={submitComment}
             disabled={submitting}
-            className="btn-motion flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:transform-none"
+            className="btn-motion flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:transform-none md:w-auto md:text-sm"
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-3 w-3 md:h-4 md:w-4" />
             {submitting ? "送信中..." : "送信"}
           </button>
         </div>
       )}
+
+      {/* ソート切り替え */}
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span className="shrink-0">並び替え:</span>
+        <button
+          type="button"
+          onClick={() => setSort("new")}
+          className={cn(
+            "rounded-full border px-2 py-1 text-xs md:px-3",
+            sort === "new" ? "border-primary bg-primary/10 text-primary" : "border-transparent hover:bg-muted"
+          )}
+        >
+          新しい順
+        </button>
+        <button
+          type="button"
+          onClick={() => setSort("old")}
+          className={cn(
+            "rounded-full border px-2 py-1 text-xs md:px-3",
+            sort === "old" ? "border-primary bg-primary/10 text-primary" : "border-transparent hover:bg-muted"
+          )}
+        >
+          古い順
+        </button>
+        <button
+          type="button"
+          onClick={() => setSort("top")}
+          className={cn(
+            "rounded-full border px-2 py-1 text-xs md:px-3",
+            sort === "top" ? "border-primary bg-primary/10 text-primary" : "border-transparent hover:bg-muted"
+          )}
+        >
+          人気順（Good数）
+        </button>
+      </div>
 
       {loading ? (
         <p className="text-sm text-muted-foreground">読み込み中...</p>
@@ -412,18 +696,27 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
         <SearchHighlightContainer query={highlightQuery} mode={highlightMode}>
           <motion.ul
             className="space-y-4"
-            variants={staggerContainer}
-            initial="initial"
-            animate="animate"
+            variants={hasOptimisticComment ? undefined : staggerContainer}
+            initial={hasOptimisticComment ? false : "initial"}
+            animate={hasOptimisticComment ? false : "animate"}
           >
           {comments.map((c) => {
-            const isReportedByMe = reportedIds.includes(c.id);
+            // Optimisticコメントかどうかを判定（client_idが存在し、idが空文字列または未定義の場合）
+            const isOptimistic = !!c.client_id && (!c.id || c.id.trim() === "");
+            const isConfirmedComment = !isOptimistic && !!c.id && c.id.trim() !== "";
+            const isReportedByMe: boolean = isConfirmedComment && c.id ? reportedIds.includes(c.id) : false;
+            const commentKey = c.client_id ?? c.id; // 仕様書4-3: keyはclient_id ?? id
+            // data-comment-idは確定コメント（Optimisticでない）の場合のみ設定
+            const commentIdForScroll = isConfirmedComment && c.id ? c.id : undefined;
             return (
             <motion.li
-              key={c.id}
-              ref={c.id === pulseTargetId ? cardToPulseRef : undefined}
+              key={commentKey}
+              {...(commentIdForScroll ? { "data-comment-id": commentIdForScroll } : {})}
+              ref={c.id === pulseTargetId && !isOptimistic ? cardToPulseRef : undefined}
               variants={staggerItem}
               transition={transitionPresets.normal}
+              initial={isOptimistic ? false : "initial"}
+              animate="animate"
               className="rounded-xl border bg-card p-4"
             >
               {c.hidden_reason === "deleted" ? (
@@ -456,10 +749,10 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                         </span>
                       )}
                     </span>
-                    {isAdmin ? (
+                    {isAdmin && !isOptimistic ? (
                       <button
                         type="button"
-                        onClick={() => toggleAdminHeart(c.id)}
+                        onClick={() => c.id && toggleAdminHeart(c.id)}
                         className={cn(
                           "flex items-center gap-0.5 rounded p-0.5 transition-colors hover:bg-muted",
                           c.admin_heart ? "text-primary" : "text-muted-foreground"
@@ -475,7 +768,7 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                       </span>
                     ) : null}
                   </div>
-                  {editingId === c.id ? (
+                  {!isOptimistic && editingId === c.id ? (
                     <div className="mb-3">
                       <textarea
                         aria-label="編集用本文"
@@ -515,60 +808,105 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                       {formatBody(c.body)}
                     </p>
                   )}
-                  <div className="flex flex-wrap items-center gap-3">
-                    {canEdit(c) && editingId !== c.id && (
+                  <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                    {!isOptimistic && canEdit(c) && editingId !== c.id && (
                       <button
                         type="button"
-                        onClick={() => { setEditingId(c.id); setEditingBody(c.body); setError(null); }}
-                        className="flex items-center gap-1 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-muted"
+                        onClick={() => { c.id && setEditingId(c.id); setEditingBody(c.body); setError(null); }}
+                        className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted md:text-sm"
                         aria-label="編集"
                       >
-                        <Pencil className="h-4 w-4" />
-                        編集
+                        <Pencil className="h-3 w-3 md:h-4 md:w-4" />
+                        <span className="hidden sm:inline">編集</span>
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => toggleReaction(c.id, "good")}
-                      className={cn(
-                        "flex items-center gap-1 rounded px-2 py-1 text-sm",
-                        c.my_reaction === "good" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-muted"
-                      )}
-                      aria-label="Good"
+                    {!isOptimistic && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => c.id && toggleReaction(c.id, "good")}
+                          className={cn(
+                            "flex items-center gap-1 rounded px-2 py-1 text-xs md:text-sm",
+                            c.my_reaction === "good" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-muted"
+                          )}
+                          aria-label="Good"
+                        >
+                          <ThumbsUp className="h-3 w-3 md:h-4 md:w-4" />
+                          <span>{c.good_count}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => c.id && toggleReaction(c.id, "not_good")}
+                          className={cn(
+                            "flex items-center gap-1 rounded px-2 py-1 text-xs md:text-sm",
+                            c.my_reaction === "not_good" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
+                          )}
+                          aria-label="Not Good"
+                        >
+                          <ThumbsDown className="h-3 w-3 md:h-4 md:w-4" />
+                        </button>
+                      </>
+                    )}
+                    {isOptimistic && (
+                      <>
+                        <div className="flex items-center gap-1 rounded px-2 py-1 text-xs md:text-sm text-muted-foreground opacity-50">
+                          <ThumbsUp className="h-3 w-3 md:h-4 md:w-4" />
+                          <span>{c.good_count}</span>
+                        </div>
+                        <div className="flex items-center gap-1 rounded px-2 py-1 text-xs md:text-sm text-muted-foreground opacity-50">
+                          <ThumbsDown className="h-3 w-3 md:h-4 md:w-4" />
+                        </div>
+                      </>
+                    )}
+                    {!isOptimistic && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!user) {
+                            setError("返信するにはログインが必要です。");
+                            return;
+                          }
+                          if (!c.id) return;
+                          const commentId = c.id; // 型ガード
+                          setReplyInputOpenIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(commentId)) {
+                              next.delete(commentId);
+                              setReplyBodyById((prev) => ({ ...prev, [commentId]: "" }));
+                            } else {
+                              next.add(commentId);
+                            }
+                            return next;
+                          });
+                        }}
+                      className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted md:text-sm"
+                      aria-label="返信"
                     >
-                      <ThumbsUp className="h-4 w-4" />
-                      <span>{c.good_count}</span>
+                      <MessageSquare className="h-3 w-3 md:h-4 md:w-4" />
+                      <span className="hidden sm:inline">返信</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => toggleReaction(c.id, "not_good")}
-                      className={cn(
-                        "flex items-center gap-1 rounded px-2 py-1 text-sm",
-                        c.my_reaction === "not_good" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
-                      )}
-                      aria-label="Not Good"
-                    >
-                      <ThumbsDown className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (isReportedByMe) return;
-                        setReportingId(reportingId === c.id ? null : c.id);
-                        if (reportingId !== c.id) setError(null);
-                      }}
-                      className={cn(
-                        "flex items-center gap-1 rounded px-2 py-1 text-sm text-muted-foreground",
-                        isReportedByMe ? "cursor-default opacity-70" : "hover:bg-muted"
-                      )}
-                      disabled={isReportedByMe}
-                      aria-label="通報"
-                    >
-                      <Flag className="h-4 w-4" />
-                      {isReportedByMe ? "通報済み" : "通報"}
-                    </button>
+                    )}
+                    {!isOptimistic && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isReportedByMe || !c.id) return;
+                          setReportingId(reportingId === c.id ? null : c.id);
+                          if (reportingId !== c.id) setError(null);
+                        }}
+                        className={cn(
+                          "flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground md:text-sm",
+                          isReportedByMe ? "cursor-default opacity-70" : "hover:bg-muted"
+                        )}
+                        disabled={isReportedByMe}
+                        aria-label="通報"
+                      >
+                        <Flag className="h-3 w-3 md:h-4 md:w-4" />
+                        <span className="hidden sm:inline">{isReportedByMe ? "通報済み" : "通報"}</span>
+                      </button>
+                    )}
                   </div>
-                  {reportingId === c.id && (
+                  {!isOptimistic && reportingId === c.id && c.id && (
                     <div className="mt-3 rounded-lg border bg-muted/50 p-3">
                       <p className="mb-2 text-sm font-medium">通報理由</p>
                       <select
@@ -609,6 +947,154 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
                       </div>
                     </div>
                   )}
+                  {/* 返信（1階層） */}
+                  {!isOptimistic && (
+                    <div className="mt-3 border-t pt-3">
+                      {/* 返信一覧の開閉ボタン */}
+                      {c.id && ((c.reply_count && c.reply_count > 0) || (replies[c.id] && replies[c.id]!.length > 0)) ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!c.id) return;
+                            setReplyOpenIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(c.id)) {
+                                next.delete(c.id);
+                              } else {
+                                next.add(c.id);
+                              }
+                              return next;
+                            });
+                            if (!replies[c.id] && !replyOpenIds.has(c.id)) {
+                              await loadReplies(c.id);
+                            }
+                          }}
+                          className="mb-2 text-xs text-muted-foreground underline hover:text-primary"
+                        >
+                          {replyOpenIds.has(c.id)
+                            ? "返信を非表示"
+                            : `${c.reply_count ?? replies[c.id]?.length ?? 0}件の返信`}
+                        </button>
+                      ) : null}
+                      {/* 返信入力欄 */}
+                      {c.id && replyInputOpenIds.has(c.id) && user && (
+                      <div className="mb-3 pl-6">
+                        <textarea
+                          placeholder="返信を書く"
+                          value={replyBodyById[c.id] ?? ""}
+                          onChange={(e) =>
+                            setReplyBodyById((prev) => ({
+                              ...prev,
+                              [c.id]: e.target.value,
+                            }))
+                          }
+                          className="mb-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs"
+                          rows={2}
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReplyInputOpenIds((prev) => {
+                                const next = new Set(prev);
+                                next.delete(c.id);
+                                return next;
+                              });
+                              setReplyBodyById((prev) => ({ ...prev, [c.id]: "" }));
+                              setError(null);
+                            }}
+                            className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                          >
+                            キャンセル
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => submitReply(c.id)}
+                            disabled={!replyBodyById[c.id]?.trim()}
+                            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            返信
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                      {/* 返信一覧 */}
+                      {c.id && replyOpenIds.has(c.id) && (
+                      <div className="mt-2 space-y-2 pl-6">
+                        {(replies[c.id] ?? []).map((r) => (
+                          <div
+                            key={r.id}
+                            className="rounded-lg border bg-muted/40 p-2 text-xs"
+                          >
+                            <div className="mb-1 flex items-center gap-2">
+                              {r.author_avatar_url && (
+                                <img
+                                  src={r.author_avatar_url}
+                                  alt=""
+                                  className="h-6 w-6 shrink-0 rounded-full object-cover"
+                                  width={24}
+                                  height={24}
+                                />
+                              )}
+                              <span className="font-medium text-foreground">
+                                {r.author_name}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {new Date(r.created_at).toLocaleString("ja")}
+                              </span>
+                              {isAdmin ? (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleAdminHeartForReply(r.id)}
+                                  className={cn(
+                                    "flex items-center gap-0.5 rounded p-0.5 transition-colors hover:bg-muted",
+                                    r.admin_heart ? "text-primary" : "text-muted-foreground"
+                                  )}
+                                  title="管理者ハート"
+                                  aria-label="管理者ハート"
+                                >
+                                  <Heart className={cn("h-3 w-3", r.admin_heart && "fill-current")} />
+                                </button>
+                              ) : r.admin_heart ? (
+                                <span className="flex items-center gap-0.5 text-primary" title="管理者ハート">
+                                  <Heart className="h-3 w-3 fill-current" />
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mb-2 whitespace-pre-wrap text-foreground">
+                              {formatBody(r.body)}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                              <button
+                                type="button"
+                                onClick={() => toggleReactionForReply(r.id, "good")}
+                                className={cn(
+                                  "flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] md:gap-1",
+                                  r.my_reaction === "good" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-muted"
+                                )}
+                                aria-label="Good"
+                              >
+                                <ThumbsUp className="h-2.5 w-2.5 md:h-3 md:w-3" />
+                                <span>{r.good_count}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => toggleReactionForReply(r.id, "not_good")}
+                                className={cn(
+                                  "flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] md:gap-1",
+                                  r.my_reaction === "not_good" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
+                                )}
+                                aria-label="Not Good"
+                              >
+                                <ThumbsDown className="h-2.5 w-2.5 md:h-3 md:w-3" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </motion.li>
@@ -618,6 +1104,47 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
       )}
       {!loading && comments.length === 0 && (
         <p className="text-sm text-muted-foreground">まだコメントはありません。</p>
+      )}
+
+      {/* 怪しいリンクの警告モーダル */}
+      {linkWarningOpen && linkWarningUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-xl">
+            <h3 className="mb-2 text-base font-semibold text-foreground">
+              外部リンクへの移動前に確認
+            </h3>
+            <p className="mb-3 text-sm text-muted-foreground">
+              短縮URLや不審な形式のリンクの可能性があります。信頼できるURLか確認してください。
+            </p>
+            <p className="mb-4 rounded bg-muted px-3 py-2 text-[11px] text-muted-foreground break-all">
+              {linkWarningUrl}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setLinkWarningOpen(false);
+                  setLinkWarningUrl(null);
+                }}
+                className="rounded border px-3 py-1.5 text-xs"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const url = linkWarningUrl;
+                  setLinkWarningOpen(false);
+                  setLinkWarningUrl(null);
+                  if (url) window.open(url, "_blank", "noopener,noreferrer");
+                }}
+                className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                移動する
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

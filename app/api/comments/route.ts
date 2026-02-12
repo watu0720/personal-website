@@ -9,6 +9,7 @@ import {
   checkBodyLinks,
   getCommentsForPage,
   getReactionCounts,
+  getReplyCounts,
 } from "@/lib/repositories/comments";
 
 const CreateSchema = z.object({
@@ -27,6 +28,7 @@ export async function GET(req: NextRequest) {
   const limitParam = req.nextUrl.searchParams.get("limit");
   const pageParam = req.nextUrl.searchParams.get("page");
   const withTotal = req.nextUrl.searchParams.get("with_total") === "1";
+  const sort = req.nextUrl.searchParams.get("sort") ?? "new";
   const limit = limitParam ? Math.max(1, Math.min(500, Number(limitParam) || 0)) : undefined;
   const page = pageParam ? Math.max(1, Number(pageParam) || 1) : 1;
 
@@ -35,8 +37,17 @@ export async function GET(req: NextRequest) {
     .from("comments")
     .select("*", { count: withTotal ? "exact" : undefined })
     .eq("page_key", pageKey)
-    .eq("is_hidden", false)
-    .order("created_at", { ascending: false });
+    .eq("is_hidden", false);
+
+  if (sort === "old") {
+    baseQuery = baseQuery.order("created_at", { ascending: true });
+  } else if (sort === "top") {
+    // 人気順: Good数でソート（同数の場合は新しい順）
+    baseQuery = baseQuery.order("created_at", { ascending: false });
+  } else {
+    // default: new
+    baseQuery = baseQuery.order("created_at", { ascending: false });
+  }
 
   if (limit) {
     const from = (page - 1) * limit;
@@ -51,6 +62,7 @@ export async function GET(req: NextRequest) {
 
   const commentIds = rows.map((c) => c.id);
   const counts = await getReactionCounts(supabase, commentIds);
+  const replyCounts = await getReplyCounts(supabase, commentIds);
 
   let myReactions: Record<string, "good" | "not_good"> = {};
   const { data: { user } } = await supabase.auth.getUser();
@@ -66,12 +78,22 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const list = rows.map((c) => ({
+  let list = rows.map((c) => ({
     ...c,
     good_count: counts[c.id]?.good ?? 0,
     not_good_count: counts[c.id]?.not_good ?? 0,
     my_reaction: myReactions[c.id] ?? null,
+    reply_count: replyCounts[c.id] ?? 0,
   }));
+
+  if (sort === "top") {
+    list = [...list].sort((a, b) => {
+      if (b.good_count === a.good_count) {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      return (b.good_count ?? 0) - (a.good_count ?? 0);
+    });
+  }
 
   if (withTotal && limit) {
     const total = count ?? list.length;
@@ -113,8 +135,14 @@ export async function POST(req: NextRequest) {
 
   const linkCheck = checkBodyLinks(body);
   if (!linkCheck.ok) {
+    const message =
+      !linkCheck.hasLinks
+        ? "本文が不正です。"
+        : linkCheck.linkCount > 2
+        ? "リンクは1つのコメントにつき最大2件までです。"
+        : "リンクは http:// または https:// のみ許可されています。";
     return NextResponse.json(
-      { error: "リンクは http:// または https:// のみ許可されています。" },
+      { error: message },
       { status: 400 }
     );
   }

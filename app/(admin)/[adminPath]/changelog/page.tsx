@@ -77,17 +77,17 @@ export default function AdminChangelogPage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="mb-6 text-2xl font-bold text-foreground">改訂履歴</h1>
+    <div className="mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-10">
+      <h1 className="mb-4 text-lg font-bold text-foreground md:mb-6 md:text-2xl">改訂履歴</h1>
 
-      <div className="mb-8 rounded-xl border bg-card p-4">
-        <h2 className="mb-3 text-lg font-semibold text-foreground">新規追加</h2>
+      <div className="mb-6 rounded-xl border bg-card p-3 md:mb-8 md:p-4">
+        <h2 className="mb-3 text-base font-semibold text-foreground md:text-lg">新規追加</h2>
         <input
           type="text"
           placeholder="タイトル"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="mb-3 w-full rounded-lg border bg-background px-3 py-2 text-foreground"
+          className="mb-3 w-full rounded-lg border bg-background px-3 py-2 text-xs text-foreground md:text-sm"
         />
         <RichTextEditor
           apiKey={process.env.NEXT_PUBLIC_TINYMCE_API_KEY ?? ""}
@@ -95,7 +95,7 @@ export default function AdminChangelogPage() {
           onChange={setBodyHtml}
         />
         {message && (
-          <p className={`mt-2 text-sm ${message.type === "ok" ? "text-green-600" : "text-destructive"}`}>
+          <p className={`mt-2 text-xs md:text-sm ${message.type === "ok" ? "text-green-600" : "text-destructive"}`}>
             {message.text}
           </p>
         )}
@@ -103,29 +103,29 @@ export default function AdminChangelogPage() {
           type="button"
           onClick={handleAdd}
           disabled={saving}
-          className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          className="mt-3 w-full rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground disabled:opacity-50 md:w-auto md:text-sm"
         >
           {saving ? "追加中..." : "追加"}
         </button>
       </div>
 
-      <h2 className="mb-3 text-lg font-semibold text-foreground">一覧</h2>
+      <h2 className="mb-3 text-base font-semibold text-foreground md:text-lg">一覧</h2>
       {loading ? (
-        <p className="text-sm text-muted-foreground">読み込み中...</p>
+        <p className="text-xs text-muted-foreground md:text-sm">読み込み中...</p>
       ) : list.length === 0 ? (
-        <p className="text-sm text-muted-foreground">まだありません。</p>
+        <p className="text-xs text-muted-foreground md:text-sm">まだありません。</p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-2 md:space-y-3">
           {list.map((row) => (
-            <li key={row.id} className="flex items-center justify-between rounded-lg border bg-card p-4">
+            <li key={row.id} className="flex flex-col gap-2 rounded-lg border bg-card p-3 md:flex-row md:items-center md:justify-between md:p-4">
               <div>
-                <span className="font-medium text-foreground">{row.title}</span>
-                <span className="ml-2 text-xs text-muted-foreground">{formatDate(row.published_at)}</span>
+                <span className="text-sm font-medium text-foreground md:text-base">{row.title}</span>
+                <span className="ml-2 text-[10px] text-muted-foreground md:text-xs">{formatDate(row.published_at)}</span>
               </div>
               <button
                 type="button"
                 onClick={() => handleDelete(row.id)}
-                className="rounded border border-destructive/50 px-3 py-1 text-sm text-destructive hover:bg-destructive/10"
+                className="w-full rounded border border-destructive/50 px-3 py-1 text-xs text-destructive hover:bg-destructive/10 md:w-auto md:text-sm"
               >
                 削除
               </button>

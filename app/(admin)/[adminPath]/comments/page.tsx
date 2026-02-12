@@ -97,20 +97,38 @@ export default function AdminCommentsPage() {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="mb-6 text-xl font-bold text-foreground">コメント管理</h1>
-      <div className="mb-4 flex flex-wrap gap-3">
-        <select value={pageKey} onChange={(e) => setPageKey(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm">
+    <div className="p-4 md:p-6">
+      <h1 className="mb-4 text-lg font-bold text-foreground md:mb-6 md:text-xl">コメント管理</h1>
+      <div className="mb-4 flex flex-col gap-2 md:flex-row md:flex-wrap md:gap-3">
+        <select
+          value={pageKey}
+          onChange={(e) => setPageKey(e.target.value)}
+          className="w-full rounded-lg border bg-background px-3 py-2 text-xs md:w-auto md:text-sm"
+          aria-label="ページでフィルタ"
+          title="ページでフィルタ"
+        >
           {PAGE_OPTIONS.map((o) => (
             <option key={o.value || "all"} value={o.value}>{o.label}</option>
           ))}
         </select>
-        <select value={state} onChange={(e) => setState(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm">
+        <select
+          value={state}
+          onChange={(e) => setState(e.target.value)}
+          className="w-full rounded-lg border bg-background px-3 py-2 text-xs md:w-auto md:text-sm"
+          aria-label="状態でフィルタ"
+          title="状態でフィルタ"
+        >
           {STATE_OPTIONS.map((o) => (
             <option key={o.value || "all"} value={o.value}>{o.label}</option>
           ))}
         </select>
-        <select value={authorType} onChange={(e) => setAuthorType(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm">
+        <select
+          value={authorType}
+          onChange={(e) => setAuthorType(e.target.value)}
+          className="w-full rounded-lg border bg-background px-3 py-2 text-xs md:w-auto md:text-sm"
+          aria-label="投稿者タイプでフィルタ"
+          title="投稿者タイプでフィルタ"
+        >
           <option value="">すべて</option>
           <option value="user">ログイン</option>
           <option value="guest">ゲスト</option>
@@ -120,49 +138,49 @@ export default function AdminCommentsPage() {
         <p className="text-muted-foreground">読み込み中...</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs md:text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-2 text-left">日時</th>
-                <th className="px-4 py-2 text-left">ページ</th>
-                <th className="px-4 py-2 text-left">投稿者</th>
-                <th className="px-4 py-2 text-left">本文</th>
-                <th className="px-4 py-2 text-left">Good</th>
-                <th className="px-4 py-2 text-left">NotGood</th>
-                <th className="px-4 py-2 text-left">通報</th>
-                <th className="px-4 py-2 text-left">状態</th>
-                <th className="px-4 py-2 text-left">操作</th>
+                <th className="px-2 py-2 text-left md:px-4">日時</th>
+                <th className="px-2 py-2 text-left md:px-4">ページ</th>
+                <th className="px-2 py-2 text-left md:px-4">投稿者</th>
+                <th className="px-2 py-2 text-left md:px-4">本文</th>
+                <th className="px-2 py-2 text-left md:px-4">Good</th>
+                <th className="px-2 py-2 text-left md:px-4">NotGood</th>
+                <th className="px-2 py-2 text-left md:px-4">通報</th>
+                <th className="px-2 py-2 text-left md:px-4">状態</th>
+                <th className="px-2 py-2 text-left md:px-4">操作</th>
               </tr>
             </thead>
             <tbody>
               {list.map((c) => (
                 <tr key={c.id} className="border-t">
-                  <td className="px-4 py-2 text-muted-foreground">{new Date(c.created_at).toLocaleString("ja")}</td>
-                  <td className="px-4 py-2">{c.page_key}</td>
-                  <td className="px-4 py-2">{c.author_type === "guest" ? (c.guest_name || "—") : "ユーザー"}</td>
-                  <td className="max-w-xs truncate px-4 py-2">{c.body}</td>
-                  <td className="px-4 py-2">{c.good_count}</td>
-                  <td className="px-4 py-2">{c.not_good_count}</td>
-                  <td className="px-4 py-2">{c.report_count}</td>
-                  <td className="px-4 py-2">{stateBadge(c)}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-2 py-2 text-muted-foreground md:px-4">{new Date(c.created_at).toLocaleString("ja")}</td>
+                  <td className="px-2 py-2 md:px-4">{c.page_key}</td>
+                  <td className="px-2 py-2 md:px-4">{c.author_type === "guest" ? (c.guest_name || "—") : "ユーザー"}</td>
+                  <td className="max-w-xs truncate px-2 py-2 md:px-4">{c.body}</td>
+                  <td className="px-2 py-2 md:px-4">{c.good_count}</td>
+                  <td className="px-2 py-2 md:px-4">{c.not_good_count}</td>
+                  <td className="px-2 py-2 md:px-4">{c.report_count}</td>
+                  <td className="px-2 py-2 md:px-4">{stateBadge(c)}</td>
+                  <td className="px-2 py-2 md:px-4">
                     <div className="flex flex-wrap gap-1">
                       {c.is_hidden ? (
                         <button type="button" onClick={() => doAction(c.id, "unhide")} className="rounded p-1 hover:bg-muted" title="復活">
-                          <RotateCcw className="h-4 w-4" />
+                          <RotateCcw className="h-3 w-3 md:h-4 md:w-4" />
                         </button>
                       ) : (
                         <button type="button" onClick={() => doAction(c.id, "hide")} className="rounded p-1 hover:bg-muted" title="非表示">
-                          <EyeOff className="h-4 w-4" />
+                          <EyeOff className="h-3 w-3 md:h-4 md:w-4" />
                         </button>
                       )}
                       {c.hidden_reason !== "deleted" && (
                         <button type="button" onClick={() => doAction(c.id, "delete")} className="rounded p-1 hover:bg-destructive/20" title="削除">
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
                         </button>
                       )}
                       <button type="button" onClick={() => toggleHeart(c.id)} className={cn("rounded p-1", c.admin_heart && "text-primary")} title="管理者ハート">
-                        <Heart className={c.admin_heart ? "h-4 w-4 fill-current" : "h-4 w-4"} />
+                        <Heart className={c.admin_heart ? "h-3 w-3 fill-current md:h-4 md:w-4" : "h-3 w-3 md:h-4 md:w-4"} />
                       </button>
                     </div>
                   </td>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { PageBody } from "@/components/page-body";
@@ -33,6 +34,11 @@ export function HomeChangelogSection({ initialItems }: Props) {
   const [items] = useState<ChangelogItem[]>(initialItems);
   const [modalOpen, setModalOpen] = useState(false);
   const [allItems, setAllItems] = useState<ChangelogItem[] | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -99,45 +105,54 @@ export function HomeChangelogSection({ initialItems }: Props) {
         </button>
       </div>
 
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      {modalOpen && mounted && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
+          onClick={(e) => {
+            // 背景クリックで閉じる
+            if (e.target === e.currentTarget) {
+              setModalOpen(false);
+            }
+          }}
+        >
           <ModalMotion open={modalOpen}>
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-xl border bg-card shadow-lg">
-            <div className="sticky top-0 flex items-center justify-between border-b bg-card p-4">
-              <h3 className="text-lg font-semibold text-foreground">改訂履歴 一覧</h3>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="rounded p-1 text-muted-foreground hover:bg-muted"
-                aria-label="閉じる"
-              >
-                <X className="h-5 w-5" />
-              </button>
+            <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border bg-card shadow-lg">
+              <div className="sticky top-0 flex items-center justify-between border-b bg-card p-4">
+                <h3 className="text-lg font-semibold text-foreground">改訂履歴 一覧</h3>
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="rounded p-1 text-muted-foreground hover:bg-muted"
+                  aria-label="閉じる"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-4">
+                {allItems === null ? (
+                  <p className="text-sm text-muted-foreground">読み込み中...</p>
+                ) : allItems.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">件はありません。</p>
+                ) : (
+                  <ul className="flex flex-col gap-4">
+                    {allItems.map((item) => (
+                      <li key={item.id} className="border-b pb-4 last:border-0">
+                        <div className="text-xs text-muted-foreground">
+                          {formatDate(item.published_at)}
+                        </div>
+                        <h4 className="font-medium text-foreground">{item.title}</h4>
+                        <div className="prose prose-sm mt-1 max-w-none">
+                          <PageBody html={item.body_html} />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
-            <div className="p-4">
-              {allItems === null ? (
-                <p className="text-sm text-muted-foreground">読み込み中...</p>
-              ) : allItems.length === 0 ? (
-                <p className="text-sm text-muted-foreground">件はありません。</p>
-              ) : (
-                <ul className="flex flex-col gap-4">
-                  {allItems.map((item) => (
-                    <li key={item.id} className="border-b pb-4 last:border-0">
-                      <div className="text-xs text-muted-foreground">
-                        {formatDate(item.published_at)}
-                      </div>
-                      <h4 className="font-medium text-foreground">{item.title}</h4>
-                      <div className="prose prose-sm mt-1 max-w-none">
-                        <PageBody html={item.body_html} />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
           </ModalMotion>
-        </div>
+        </div>,
+        document.body
       )}
     </section>
   );

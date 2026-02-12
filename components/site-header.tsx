@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Sun, Moon, Menu, X } from "lucide-react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
@@ -38,11 +38,50 @@ export function SiteHeader({ heroImageUrl }: SiteHeaderProps) {
   const [navMenuOpen, setNavMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const [search, setSearch] = useState("");
+  const [recentSearches, setRecentSearches] = useState<string[]>([]); // Hydrationエラー回避のため、初期値は空配列
+
+  const RECENT_KEY = "recent_search_words";
+
+  // クライアント側でのみlocalStorageから読み込む（Hydrationエラー回避）
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(RECENT_KEY);
+      if (!raw) return;
+      const arr = JSON.parse(raw) as string[];
+      if (Array.isArray(arr)) {
+        setRecentSearches(arr);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  function saveRecent(q: string) {
+    if (typeof window === "undefined") return;
+    try {
+      const current = recentSearches.filter((w) => w !== q);
+      const next = [q, ...current].slice(0, 10);
+      window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      setRecentSearches(next); // stateも更新
+    } catch {
+      // ignore
+    }
+  }
 
   const handleSearchSubmit = () => {
     const q = search.trim();
     if (!q) return;
     const params = new URLSearchParams({ q, mode: "partial" });
+    // 現在のURLからtypesパラメータを取得して維持
+    if (typeof window !== "undefined") {
+      const currentParams = new URLSearchParams(window.location.search);
+      const types = currentParams.get("types");
+      if (types) {
+        params.set("types", types);
+      }
+    }
+    saveRecent(q);
     router.push(`/search?${params.toString()}`);
   };
 
@@ -69,20 +108,53 @@ export function SiteHeader({ heroImageUrl }: SiteHeaderProps) {
             <div className="shrink-0 flex items-center gap-2">
               {/* 検索（md以上：インライン、md未満：アイコン） */}
               <div className="hidden md:flex items-center gap-2">
-                <input
-                  type="search"
-                  placeholder="サイト内検索"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSearchSubmit();
-                  }}
-                  className="w-40 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                <div className="relative">
+                  <input
+                    type="search"
+                    placeholder="サイト内検索"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSearchSubmit();
+                    }}
+                    onFocus={(e) => {
+                      if (recentSearches.length === 0) return;
+                      const list = document.getElementById("recent-search-list");
+                      if (list) list.classList.remove("hidden");
+                    }}
+                    onBlur={() => {
+                      const list = document.getElementById("recent-search-list");
+                      if (list) {
+                        // 少し遅らせてクリックを拾えるようにする
+                        setTimeout(() => list.classList.add("hidden"), 100);
+                      }
+                    }}
+                    className="w-40 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <div
+                    id="recent-search-list"
+                    className="absolute left-0 right-0 top-full z-20 mt-1 hidden rounded-lg border bg-card py-1 text-xs shadow-lg"
+                  >
+                    {recentSearches.map((word) => (
+                      <button
+                        key={word}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSearch(word);
+                        }}
+                        className="flex w-full items-center px-3 py-1 text-left text-muted-foreground hover:bg-muted"
+                      >
+                        {word}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={handleSearchSubmit}
-                  className="btn-motion shrink-0 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  disabled={!search.trim()}
+                  className="btn-motion shrink-0 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   検索
                 </button>

@@ -26,8 +26,14 @@ export async function PATCH(
   const { body: newBody, edit_token } = parsed.data;
   const linkCheck = checkBodyLinks(newBody.trim());
   if (!linkCheck.ok) {
+    const message =
+      !linkCheck.hasLinks
+        ? "本文が不正です。"
+        : linkCheck.linkCount > 2
+        ? "リンクは1つのコメントにつき最大2件までです。"
+        : "リンクは http:// または https:// のみ許可されています。";
     return NextResponse.json(
-      { error: "リンクは http:// または https:// のみ許可されています。" },
+      { error: message },
       { status: 400 }
     );
   }

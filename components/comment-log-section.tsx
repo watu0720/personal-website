@@ -120,6 +120,7 @@ export function CommentLogSection({ pageKey, label, initialPage, query, mode }: 
   const [reportMessage, setReportMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [reportedIds, setReportedIds] = useState<string[]>([]);
+  const [sort, setSort] = useState<"new" | "old" | "top">("new");
 
   const fingerprint = getOrCreateFingerprint();
 
@@ -131,6 +132,7 @@ export function CommentLogSection({ pageKey, label, initialPage, query, mode }: 
       params.set("page", String(targetPage));
       params.set("limit", "100");
       params.set("with_total", "1");
+       params.set("sort", sort);
       const res = await fetch(`/api/comments?${params.toString()}`, {
         cache: "no-store",
         headers: fingerprint ? { "X-Fingerprint": fingerprint } : {},
@@ -174,7 +176,7 @@ export function CommentLogSection({ pageKey, label, initialPage, query, mode }: 
       }
       setLoading(false);
     },
-    [pageKey, fingerprint]
+    [pageKey, fingerprint, sort]
   );
 
   useEffect(() => {
@@ -314,6 +316,41 @@ export function CommentLogSection({ pageKey, label, initialPage, query, mode }: 
           {mode === "word" ? "単語完全一致" : "部分一致"}）
         </p>
       )}
+
+      {/* ソート切り替え */}
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span>並び替え:</span>
+        <button
+          type="button"
+          onClick={() => setSort("new")}
+          className={cn(
+            "rounded-full border px-3 py-1",
+            sort === "new" ? "border-primary bg-primary/10 text-primary" : "border-transparent hover:bg-muted"
+          )}
+        >
+          新しい順
+        </button>
+        <button
+          type="button"
+          onClick={() => setSort("old")}
+          className={cn(
+            "rounded-full border px-3 py-1",
+            sort === "old" ? "border-primary bg-primary/10 text-primary" : "border-transparent hover:bg-muted"
+          )}
+        >
+          古い順
+        </button>
+        <button
+          type="button"
+          onClick={() => setSort("top")}
+          className={cn(
+            "rounded-full border px-3 py-1",
+            sort === "top" ? "border-primary bg-primary/10 text-primary" : "border-transparent hover:bg-muted"
+          )}
+        >
+          人気順（Good数）
+        </button>
+      </div>
 
       {loading ? (
         <p className="text-sm text-muted-foreground">読み込み中...</p>
