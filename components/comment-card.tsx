@@ -179,7 +179,7 @@ export function CommentCard({
                 height={32}
               />
             )}
-            <span className="font-medium text-foreground">
+            <span className="text-xs font-medium text-foreground">
               {c.author_type === "user"
                 ? (c.author_name || "ログインユーザー")
                 : (c.guest_name || "ゲスト")}
@@ -406,13 +406,11 @@ export function CommentCard({
               {/* 返信入力欄 */}
               {c.id && replyInputOpenIds.has(c.id) && user && (
                 <div className="mb-2 ml-8 relative">
-                  {/* 左側の垂直線 */}
-                  <div className="absolute left-[-16px] top-0 bottom-0 w-[2px] bg-border/60" />
-                  {/* アバターへの曲線（水平線 + 曲線） */}
-                  <div className="absolute left-[-16px] top-[12px] w-4 h-[2px] bg-border/60" />
-                  <svg className="absolute left-[-12px] top-[8px] w-8 h-8 pointer-events-none" viewBox="0 0 16 16" style={{ overflow: 'visible' }}>
-                    <path d="M 4 8 Q 0 8 0 12" stroke="hsl(var(--border))" strokeWidth="2" fill="none" opacity="0.6" />
-                  </svg>
+                  {/* アバターへのL字型の枝（垂直線 + 水平線） */}
+                  {/* 上からアバター位置までの垂直線 */}
+                  <div className="absolute left-[-16px] top-0 h-3 w-[2px] bg-border/60" />
+                  {/* アバター位置からの水平線 */}
+                  <div className="absolute left-[-16px] top-3 w-4 h-[2px] bg-border/60" />
                   <textarea
                     placeholder="返信を書く"
                     value={replyBodyById[c.id] ?? ""}
@@ -447,18 +445,25 @@ export function CommentCard({
               {/* 返信一覧 */}
               {c.id && replyOpenIds.has(c.id) && (
                 <div className="mt-1 ml-8 relative">
-                  {/* 左側の垂直線 */}
-                  <div className="absolute left-[-16px] top-0 bottom-0 w-[2px] bg-border/60" />
-                  {(replies[c.id] ?? []).map((r, index) => (
-                    <div
-                      key={r.id}
-                      className="relative py-1"
-                    >
-                      {/* アバターへの曲線（水平線 + 曲線） */}
-                      <div className="absolute left-[-16px] top-[12px] w-4 h-[2px] bg-border/60" />
-                      <svg className="absolute left-[-12px] top-[8px] w-8 h-8 pointer-events-none" viewBox="0 0 16 16" style={{ overflow: 'visible' }}>
-                        <path d="M 4 8 Q 0 8 0 12" stroke="hsl(var(--border))" strokeWidth="2" fill="none" opacity="0.6" />
-                      </svg>
+                  {(replies[c.id] ?? []).map((r, index) => {
+                    const isFirst = index === 0;
+                    const isLast = index === (replies[c.id]?.length ?? 0) - 1;
+                    return (
+                      <div
+                        key={r.id}
+                        className="relative py-1"
+                      >
+                        {/* アバター位置から上方向への垂直線（上向きのL字型） */}
+                        {/* 最初の返信: アバター位置から上方向へ */}
+                        {isFirst && (
+                          <div className="absolute left-[-16px] top-0 h-3 w-[2px] bg-border/60" />
+                        )}
+                        {/* 2番目以降: 前の返信のアバター位置から現在のアバター位置まで（上方向、py-1のパディングを考慮） */}
+                        {!isFirst && (
+                          <div className="absolute left-[-16px] top-[-60px] h-[72px] w-[2px] bg-border/60" />
+                        )}
+                        {/* アバター位置からの水平線（L字型の横線部分） */}
+                        <div className="absolute left-[-16px] top-3 w-4 h-[2px] bg-border/60" />
                       <div className="flex items-center gap-2 mb-0.5">
                         {r.author_avatar_url && (
                           <img
@@ -522,8 +527,9 @@ export function CommentCard({
                           <ThumbsDown className="h-2.5 w-2.5 md:h-3 md:w-3" />
                         </button>
                       </div>
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
