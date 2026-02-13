@@ -4,14 +4,14 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { ThumbsUp, ThumbsDown, Heart, Flag, Send, Pencil, MessageSquare } from "lucide-react";
+import { Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { staggerContainer, staggerItem, transitionPresets } from "@/lib/animations";
 import { getOrCreateFingerprint } from "@/lib/fingerprint";
-import { shortenUrl } from "@/lib/repositories/comments";
 import { cn } from "@/lib/utils";
 import { SearchHighlightContainer } from "@/components/search-highlight";
 import { pulseElement } from "@/lib/motion/commentPulse";
+import { CommentCard } from "@/components/comment-card";
 
 const EDIT_TOKENS_KEY = "comment_edit_tokens";
 
@@ -543,31 +543,6 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
     }
   }
 
-  function formatBody(text: string): React.ReactNode {
-    const parts: React.ReactNode[] = [];
-    const urlRe = /(https?:\/\/[^\s]+)/gi;
-    let lastIndex = 0;
-    let m: RegExpExecArray | null;
-    while ((m = urlRe.exec(text)) !== null) {
-      if (m.index > lastIndex) {
-        parts.push(text.slice(lastIndex, m.index));
-      }
-      const url = m[1];
-      parts.push(
-        <button
-          key={m.index}
-          type="button"
-          onClick={() => handleClickLink(url)}
-          className="text-primary underline break-all"
-        >
-          {shortenUrl(url)}
-        </button>
-      );
-      lastIndex = m.index + url.length;
-    }
-    if (lastIndex < text.length) parts.push(text.slice(lastIndex));
-    return <>{parts}</>;
-  }
 
   const displayName = user ? (user.displayName || user.email?.split("@")[0] || "ユーザー") : "";
 
@@ -695,7 +670,7 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
       ) : (
         <SearchHighlightContainer query={highlightQuery} mode={highlightMode}>
           <motion.ul
-            className="space-y-4"
+            className="space-y-1"
             variants={hasOptimisticComment ? undefined : staggerContainer}
             initial={hasOptimisticComment ? false : "initial"}
             animate={hasOptimisticComment ? false : "animate"}
@@ -711,392 +686,96 @@ export function CommentSection({ pageKey }: { pageKey: PageKey }) {
             return (
             <motion.li
               key={commentKey}
-              {...(commentIdForScroll ? { "data-comment-id": commentIdForScroll } : {})}
               ref={c.id === pulseTargetId && !isOptimistic ? cardToPulseRef : undefined}
               variants={staggerItem}
               transition={transitionPresets.normal}
               initial={isOptimistic ? false : "initial"}
               animate="animate"
-              className="rounded-xl border bg-card p-4"
             >
-              {c.hidden_reason === "deleted" ? (
-                <p className="text-sm text-muted-foreground">削除されました</p>
-              ) : (
-                <>
-                  <div className="mb-2 flex items-center gap-2">
-                    {c.author_type === "user" && c.author_avatar_url && (
-                      <img
-                        src={c.author_avatar_url}
-                        alt=""
-                        className="h-8 w-8 shrink-0 rounded-full object-cover"
-                        width={32}
-                        height={32}
-                      />
-                    )}
-                    <span className="font-medium text-foreground">
-                      {c.author_type === "user"
-                        ? (c.author_name || "ログインユーザー")
-                        : (c.guest_name || "ゲスト")}
-                    </span>
-                    {c.author_type === "guest" && (
-                      <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">ゲスト</span>
-                    )}
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(c.created_at).toLocaleString("ja")}
-                      {c.edited_at && (
-                        <span className="ml-1 text-muted-foreground/80" title={new Date(c.edited_at).toLocaleString("ja")}>
-                          （編集済み）
-                        </span>
-                      )}
-                    </span>
-                    {isAdmin && !isOptimistic ? (
-                      <button
-                        type="button"
-                        onClick={() => c.id && toggleAdminHeart(c.id)}
-                        className={cn(
-                          "flex items-center gap-0.5 rounded p-0.5 transition-colors hover:bg-muted",
-                          c.admin_heart ? "text-primary" : "text-muted-foreground"
-                        )}
-                        title="管理者ハート"
-                        aria-label="管理者ハート"
-                      >
-                        <Heart className={cn("h-4 w-4", c.admin_heart && "fill-current")} />
-                      </button>
-                    ) : c.admin_heart ? (
-                      <span className="flex items-center gap-0.5 text-primary" title="管理者ハート">
-                        <Heart className="h-4 w-4 fill-current" />
-                      </span>
-                    ) : null}
-                  </div>
-                  {!isOptimistic && editingId === c.id ? (
-                    <div className="mb-3">
-                      <textarea
-                        aria-label="編集用本文"
-                        value={editingBody}
-                        onChange={(e) => setEditingBody(e.target.value)}
-                        className="mb-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                        rows={3}
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => submitEdit(c.id, editingBody, c.author_type === "guest")}
-                          className="rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90"
-                        >
-                          保存
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setEditingId(null); setEditingBody(""); setError(null); }}
-                          className="rounded-lg border px-3 py-1.5 text-sm"
-                        >
-                          キャンセル
-                        </button>
-                      </div>
-                    </div>
-                  ) : isReportedByMe ? (
-                    <details className="mb-3 rounded-lg border border-dashed border-destructive/40 bg-muted/40 p-3 text-sm">
-                      <summary className="cursor-pointer select-none text-xs font-medium text-destructive">
-                        通報済みのコメントです（クリックして本文を表示）
-                      </summary>
-                      <div className="mt-2 whitespace-pre-wrap text-sm text-foreground">
-                        {formatBody(c.body)}
-                      </div>
-                    </details>
-                  ) : (
-                    <p className="mb-3 whitespace-pre-wrap text-sm text-foreground">
-                      {formatBody(c.body)}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                    {!isOptimistic && canEdit(c) && editingId !== c.id && (
-                      <button
-                        type="button"
-                        onClick={() => { c.id && setEditingId(c.id); setEditingBody(c.body); setError(null); }}
-                        className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted md:text-sm"
-                        aria-label="編集"
-                      >
-                        <Pencil className="h-3 w-3 md:h-4 md:w-4" />
-                        <span className="hidden sm:inline">編集</span>
-                      </button>
-                    )}
-                    {!isOptimistic && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => c.id && toggleReaction(c.id, "good")}
-                          className={cn(
-                            "flex items-center gap-1 rounded px-2 py-1 text-xs md:text-sm",
-                            c.my_reaction === "good" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-muted"
-                          )}
-                          aria-label="Good"
-                        >
-                          <ThumbsUp className="h-3 w-3 md:h-4 md:w-4" />
-                          <span>{c.good_count}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => c.id && toggleReaction(c.id, "not_good")}
-                          className={cn(
-                            "flex items-center gap-1 rounded px-2 py-1 text-xs md:text-sm",
-                            c.my_reaction === "not_good" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
-                          )}
-                          aria-label="Not Good"
-                        >
-                          <ThumbsDown className="h-3 w-3 md:h-4 md:w-4" />
-                        </button>
-                      </>
-                    )}
-                    {isOptimistic && (
-                      <>
-                        <div className="flex items-center gap-1 rounded px-2 py-1 text-xs md:text-sm text-muted-foreground opacity-50">
-                          <ThumbsUp className="h-3 w-3 md:h-4 md:w-4" />
-                          <span>{c.good_count}</span>
-                        </div>
-                        <div className="flex items-center gap-1 rounded px-2 py-1 text-xs md:text-sm text-muted-foreground opacity-50">
-                          <ThumbsDown className="h-3 w-3 md:h-4 md:w-4" />
-                        </div>
-                      </>
-                    )}
-                    {!isOptimistic && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!user) {
-                            setError("返信するにはログインが必要です。");
-                            return;
-                          }
-                          if (!c.id) return;
-                          const commentId = c.id; // 型ガード
-                          setReplyInputOpenIds((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(commentId)) {
-                              next.delete(commentId);
-                              setReplyBodyById((prev) => ({ ...prev, [commentId]: "" }));
-                            } else {
-                              next.add(commentId);
-                            }
-                            return next;
-                          });
-                        }}
-                      className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted md:text-sm"
-                      aria-label="返信"
-                    >
-                      <MessageSquare className="h-3 w-3 md:h-4 md:w-4" />
-                      <span className="hidden sm:inline">返信</span>
-                    </button>
-                    )}
-                    {!isOptimistic && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (isReportedByMe || !c.id) return;
-                          setReportingId(reportingId === c.id ? null : c.id);
-                          if (reportingId !== c.id) setError(null);
-                        }}
-                        className={cn(
-                          "flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground md:text-sm",
-                          isReportedByMe ? "cursor-default opacity-70" : "hover:bg-muted"
-                        )}
-                        disabled={isReportedByMe}
-                        aria-label="通報"
-                      >
-                        <Flag className="h-3 w-3 md:h-4 md:w-4" />
-                        <span className="hidden sm:inline">{isReportedByMe ? "通報済み" : "通報"}</span>
-                      </button>
-                    )}
-                  </div>
-                  {!isOptimistic && reportingId === c.id && c.id && (
-                    <div className="mt-3 rounded-lg border bg-muted/50 p-3">
-                      <p className="mb-2 text-sm font-medium">通報理由</p>
-                      <select
-                        aria-label="通報理由"
-                        value={reportReason}
-                        onChange={(e) => setReportReason(e.target.value as "spam" | "abuse" | "other")}
-                        className="mb-2 rounded border bg-background px-2 py-1 text-sm"
-                      >
-                        <option value="spam">スパム</option>
-                        <option value="abuse">誹謗</option>
-                        <option value="other">その他</option>
-                      </select>
-                      <textarea
-                        placeholder="任意：詳細"
-                        value={reportMessage}
-                        onChange={(e) => setReportMessage(e.target.value)}
-                        className="mb-2 w-full rounded border bg-background px-2 py-1 text-sm"
-                        rows={2}
-                      />
-                      {error && (
-                        <p className="mb-2 text-sm text-destructive">{error}</p>
-                      )}
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => submitReport(c.id)}
-                          className="rounded bg-destructive/90 px-3 py-1 text-sm text-destructive-foreground hover:bg-destructive"
-                        >
-                          送信
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setReportingId(null); setReportMessage(""); setError(null); }}
-                          className="rounded border px-3 py-1 text-sm"
-                        >
-                          キャンセル
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {/* 返信（1階層） */}
-                  {!isOptimistic && (
-                    <div className="mt-3 border-t pt-3">
-                      {/* 返信一覧の開閉ボタン */}
-                      {c.id && ((c.reply_count && c.reply_count > 0) || (replies[c.id] && replies[c.id]!.length > 0)) ? (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (!c.id) return;
-                            setReplyOpenIds((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(c.id)) {
-                                next.delete(c.id);
-                              } else {
-                                next.add(c.id);
-                              }
-                              return next;
-                            });
-                            if (!replies[c.id] && !replyOpenIds.has(c.id)) {
-                              await loadReplies(c.id);
-                            }
-                          }}
-                          className="mb-2 text-xs text-muted-foreground underline hover:text-primary"
-                        >
-                          {replyOpenIds.has(c.id)
-                            ? "返信を非表示"
-                            : `${c.reply_count ?? replies[c.id]?.length ?? 0}件の返信`}
-                        </button>
-                      ) : null}
-                      {/* 返信入力欄 */}
-                      {c.id && replyInputOpenIds.has(c.id) && user && (
-                      <div className="mb-3 pl-6">
-                        <textarea
-                          placeholder="返信を書く"
-                          value={replyBodyById[c.id] ?? ""}
-                          onChange={(e) =>
-                            setReplyBodyById((prev) => ({
-                              ...prev,
-                              [c.id]: e.target.value,
-                            }))
-                          }
-                          className="mb-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-xs"
-                          rows={2}
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setReplyInputOpenIds((prev) => {
-                                const next = new Set(prev);
-                                next.delete(c.id);
-                                return next;
-                              });
-                              setReplyBodyById((prev) => ({ ...prev, [c.id]: "" }));
-                              setError(null);
-                            }}
-                            className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted"
-                          >
-                            キャンセル
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => submitReply(c.id)}
-                            disabled={!replyBodyById[c.id]?.trim()}
-                            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            返信
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                      {/* 返信一覧 */}
-                      {c.id && replyOpenIds.has(c.id) && (
-                      <div className="mt-2 space-y-2 pl-6">
-                        {(replies[c.id] ?? []).map((r) => (
-                          <div
-                            key={r.id}
-                            className="rounded-lg border bg-muted/40 p-2 text-xs"
-                          >
-                            <div className="mb-1 flex items-center gap-2">
-                              {r.author_avatar_url && (
-                                <img
-                                  src={r.author_avatar_url}
-                                  alt=""
-                                  className="h-6 w-6 shrink-0 rounded-full object-cover"
-                                  width={24}
-                                  height={24}
-                                />
-                              )}
-                              <span className="font-medium text-foreground">
-                                {r.author_name}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {new Date(r.created_at).toLocaleString("ja")}
-                              </span>
-                              {isAdmin ? (
-                                <button
-                                  type="button"
-                                  onClick={() => toggleAdminHeartForReply(r.id)}
-                                  className={cn(
-                                    "flex items-center gap-0.5 rounded p-0.5 transition-colors hover:bg-muted",
-                                    r.admin_heart ? "text-primary" : "text-muted-foreground"
-                                  )}
-                                  title="管理者ハート"
-                                  aria-label="管理者ハート"
-                                >
-                                  <Heart className={cn("h-3 w-3", r.admin_heart && "fill-current")} />
-                                </button>
-                              ) : r.admin_heart ? (
-                                <span className="flex items-center gap-0.5 text-primary" title="管理者ハート">
-                                  <Heart className="h-3 w-3 fill-current" />
-                                </span>
-                              ) : null}
-                            </div>
-                            <p className="mb-2 whitespace-pre-wrap text-foreground">
-                              {formatBody(r.body)}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
-                              <button
-                                type="button"
-                                onClick={() => toggleReactionForReply(r.id, "good")}
-                                className={cn(
-                                  "flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] md:gap-1",
-                                  r.my_reaction === "good" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-muted"
-                                )}
-                                aria-label="Good"
-                              >
-                                <ThumbsUp className="h-2.5 w-2.5 md:h-3 md:w-3" />
-                                <span>{r.good_count}</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => toggleReactionForReply(r.id, "not_good")}
-                                className={cn(
-                                  "flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] md:gap-1",
-                                  r.my_reaction === "not_good" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
-                                )}
-                                aria-label="Not Good"
-                              >
-                                <ThumbsDown className="h-2.5 w-2.5 md:h-3 md:w-3" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
+              <CommentCard
+                comment={c}
+                user={user}
+                isAdmin={isAdmin}
+                isOptimistic={isOptimistic}
+                isReportedByMe={isReportedByMe}
+                editingId={editingId}
+                editingBody={editingBody}
+                reportingId={reportingId}
+                reportReason={reportReason}
+                reportMessage={reportMessage}
+                error={error}
+                replyOpenIds={replyOpenIds}
+                replyInputOpenIds={replyInputOpenIds}
+                replies={replies}
+                replyBodyById={replyBodyById}
+                onEdit={submitEdit}
+                onEditStart={(commentId, body) => {
+                  setEditingId(commentId);
+                  setEditingBody(body);
+                  setError(null);
+                }}
+                onEditCancel={() => {
+                  setEditingId(null);
+                  setEditingBody("");
+                  setError(null);
+                }}
+                onEditingBodyChange={setEditingBody}
+                onToggleReaction={toggleReaction}
+                onToggleAdminHeart={toggleAdminHeart}
+                onReportStart={(commentId) => {
+                  if (isReportedByMe || !commentId) return;
+                  setReportingId(reportingId === commentId ? null : commentId);
+                  if (reportingId !== commentId) setError(null);
+                }}
+                onReportCancel={() => {
+                  setReportingId(null);
+                  setReportMessage("");
+                  setError(null);
+                }}
+                onSubmitReport={submitReport}
+                onReportReasonChange={setReportReason}
+                onReportMessageChange={setReportMessage}
+                onReplyInputToggle={(commentId) => {
+                  if (!user) {
+                    setError("返信するにはログインが必要です。");
+                    return;
+                  }
+                  setReplyInputOpenIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(commentId)) {
+                      next.delete(commentId);
+                      setReplyBodyById((prev) => ({ ...prev, [commentId]: "" }));
+                    } else {
+                      next.add(commentId);
+                    }
+                    return next;
+                  });
+                }}
+                onSubmitReply={submitReply}
+                onReplyBodyChange={(commentId, body) => {
+                  setReplyBodyById((prev) => ({ ...prev, [commentId]: body }));
+                }}
+                onReplyToggle={async (commentId) => {
+                  setReplyOpenIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(commentId)) {
+                      next.delete(commentId);
+                    } else {
+                      next.add(commentId);
+                    }
+                    return next;
+                  });
+                  if (!replies[commentId] && !replyOpenIds.has(commentId)) {
+                    await loadReplies(commentId);
+                  }
+                }}
+                onLoadReplies={loadReplies}
+                onToggleReactionForReply={toggleReactionForReply}
+                onToggleAdminHeartForReply={toggleAdminHeartForReply}
+                canEdit={canEdit}
+                setError={setError}
+                dataCommentId={commentIdForScroll}
+              />
             </motion.li>
           );})}
         </motion.ul>
