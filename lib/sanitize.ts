@@ -24,10 +24,12 @@ export function sanitizeRichText(html: string): string {
       "pre",
       "a",
       "span",
+      "img",
     ],
     allowedAttributes: {
       a: ["href", "target", "rel"],
       span: ["class"],
+      img: ["src", "alt", "width", "height", "style", "class"],
     },
     allowedSchemes: ["http", "https"],
     transformTags: {

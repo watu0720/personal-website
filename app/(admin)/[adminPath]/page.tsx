@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { AlertTriangle, Flag, MessageSquare, HardDrive, AlertCircle } from "lucide-react";
+import { ExternalApiRefreshButton } from "@/components/admin/external-api-refresh-button";
 
 export const metadata: Metadata = {
   title: "管理画面 | わっつーのHP",
@@ -151,22 +152,17 @@ export default async function AdminDashboardPage(props: { params: Promise<{ admi
           )}
         </div>
 
-        {/* 外部APIエラー履歴（簡易版） */}
+        {/* 外部APIキャッシュ更新 */}
         <div className="rounded-lg border bg-card p-3 md:p-4">
           <div className="mb-2 flex items-center gap-2 md:mb-3">
             <AlertCircle className="h-4 w-4 text-muted-foreground md:h-5 md:w-5" />
-            <h2 className="text-sm font-semibold text-foreground md:text-base">外部APIキャッシュ状態</h2>
+            <h2 className="text-sm font-semibold text-foreground md:text-base">外部APIキャッシュ更新</h2>
           </div>
-          {oldCache && oldCache.length > 0 ? (
-            <div className="space-y-1 text-[10px] text-muted-foreground md:text-xs">
+          <ExternalApiRefreshButton adminPath={adminPath} />
+          {oldCache && oldCache.length > 0 && (
+            <div className="mt-2 space-y-1 text-[10px] text-muted-foreground md:text-xs">
               <p>24時間以上更新されていないキャッシュ: {oldCache.length}件</p>
-              <p className="text-[8px] md:text-[10px]">
-                {oldCache.slice(0, 3).map((c) => c.provider).join(", ")}
-                {oldCache.length > 3 ? "..." : ""}
-              </p>
             </div>
-          ) : (
-            <p className="text-xs text-muted-foreground md:text-sm">キャッシュは正常に更新されています</p>
           )}
         </div>
       </div>

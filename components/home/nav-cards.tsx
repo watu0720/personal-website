@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { User, ArrowRight } from "lucide-react";
+import { User, ArrowRight, Newspaper } from "lucide-react";
 import { ServiceIcon } from "@/components/ui/service-icon";
 
 const pages = [
@@ -31,6 +31,13 @@ const pages = [
     description: "開発リポジトリ一覧",
     href: "/dev",
     iconKind: "github" as const,
+    iconBg: null,
+  },
+  {
+    label: "お知らせ",
+    description: "最新のお知らせや更新情報",
+    href: "/news",
+    iconKind: "newspaper" as const,
     iconBg: null,
   },
 ];
@@ -63,6 +70,8 @@ export function HomeNavCards() {
               >
                 {p.iconKind === "user" ? (
                   <User className="h-6 w-6 transition-transform duration-300 group-hover:scale-110" />
+                ) : p.iconKind === "newspaper" ? (
+                  <Newspaper className="h-6 w-6 transition-transform duration-300 group-hover:scale-110" />
                 ) : (
                   <span className="flex h-7 w-7 items-center justify-center [&>img]:h-7 [&>img]:w-7 transition-transform duration-300 group-hover:scale-110">
                     <ServiceIcon type={p.iconKind} size={28} />

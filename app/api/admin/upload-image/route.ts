@@ -163,5 +163,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, path, url: urlData.publicUrl });
   }
 
+  if (type === "news-thumbnail") {
+    const bucket = "public-assets"; // public-assetsバケットを使用
+    const newsId = formData.get("news_id") as string | null;
+    const prefix = newsId ? `news/${newsId}` : "news/temp";
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    const filename = `thumbnail-${timestamp}-${random}.${ext}`;
+    const path = `${prefix}/${filename}`;
+
+    const { error: uploadError } = await admin.storage
+      .from(bucket)
+      .upload(path, buf, {
+        contentType: mime,
+        upsert: true,
+      });
+    if (uploadError) {
+      return NextResponse.json(
+        { error: uploadError.message || "アップロードに失敗しました" },
+        { status: 500 }
+      );
+    }
+    const { data: urlData } = admin.storage.from(bucket).getPublicUrl(path);
+    const url = `${urlData.publicUrl}?v=${timestamp}`;
+
+    await admin.from("audit_logs").insert({
+      actor_user_id: user.id,
+      action: "news.thumbnail_upload",
+      target_type: "news_thumbnail",
+      target_id: path,
+      meta: { news_id: newsId || null },
+    });
+    return NextResponse.json({ ok: true, path, url });
+  }
+
   return NextResponse.json({ error: "Invalid type" }, { status: 400 });
 }

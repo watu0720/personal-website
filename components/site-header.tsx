@@ -18,6 +18,7 @@ const NAV = [
   { label: "YouTube", href: "/youtube", icon: "Youtube" as const },
   { label: "ニコニコ", href: "/niconico", icon: "niconico" as const },
   { label: "開発", href: "/dev", icon: "github" as const },
+  { label: "お知らせ", href: "/news", icon: "Newspaper" as const },
 ];
 
 const NAV_IMAGE_ICONS: Record<string, string> = {
@@ -207,9 +208,11 @@ export function SiteHeader({ heroImageUrl }: SiteHeaderProps) {
         {/* Nav Bar（下段）※ md以上で表示 */}
         <nav className="hidden border-t border-border bg-muted/80 md:block" aria-label="メイン">
           <div className="mx-auto max-w-6xl px-2">
-            <div className="grid h-[72px] grid-cols-5">
+            <div className="grid h-[72px] grid-cols-6">
               {NAV.map((item) => {
-                const active = pathname === item.href;
+                const active = item.href === "/news" 
+                  ? pathname === "/news" || pathname.startsWith("/news/")
+                  : pathname === item.href;
                 const imageSrc = NAV_IMAGE_ICONS[item.icon];
                 const IconComponent = imageSrc ? null : NavIcons[item.icon as keyof typeof NavIcons];
                 return (
@@ -239,6 +242,7 @@ export function SiteHeader({ heroImageUrl }: SiteHeaderProps) {
                     <span className="text-xs font-medium sm:hidden">
                       {item.label === "プロフィール" ? "プロフ" : 
                        item.label === "ニコニコ" ? "ニコ" : 
+                       item.label === "お知らせ" ? "お知" :
                        item.label}
                     </span>
                   </Link>
@@ -282,7 +286,9 @@ export function SiteHeader({ heroImageUrl }: SiteHeaderProps) {
                 <div className="px-4 pb-6 pt-4">
                   <ul className="flex flex-col gap-0.5">
                     {NAV.map((item, i) => {
-                      const active = pathname === item.href;
+                      const active = item.href === "/news" 
+                        ? pathname === "/news" || pathname.startsWith("/news/")
+                        : pathname === item.href;
                       const imageSrc = NAV_IMAGE_ICONS[item.icon];
                       const IconComponent = imageSrc ? null : NavIcons[item.icon as keyof typeof NavIcons];
                       return (

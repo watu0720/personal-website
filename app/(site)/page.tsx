@@ -2,7 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getPageContent } from "@/lib/repositories/page-contents";
 import { getChangelog } from "@/lib/repositories/changelog";
 import { getHomeNotifications } from "@/lib/services/home-notifications";
+import { getLatestNewsPosts } from "@/lib/repositories/news-posts";
 import { HomeNotificationsSection } from "@/components/home/notifications-section";
+import { HomeNewsSection } from "@/components/home/news-section";
 import { HomeChangelogSection } from "@/components/home/changelog-section";
 import { HomeExternalLinks } from "@/components/home/external-links";
 import { PageBody } from "@/components/page-body";
@@ -20,10 +22,11 @@ export default async function HomePage(props: any) {
     typeof resolvedSearchParams.q === "string" ? resolvedSearchParams.q : "";
   const query = rawQuery.trim();
   const supabase = await createClient();
-  const [content, notifications, changelog] = await Promise.all([
+  const [content, notifications, changelog, newsPosts] = await Promise.all([
     getPageContent("home"),
     getHomeNotifications(6).catch(() => []),
     getChangelog(supabase, { limit: 5 }).catch(() => []),
+    getLatestNewsPosts(supabase, 5).catch(() => []),
   ]);
   const yId = process.env.YOUTUBE_CHANNEL_ID;
   const nId = process.env.NICONICO_USER_ID;
@@ -82,6 +85,10 @@ export default async function HomePage(props: any) {
             </div>
           </AnimatedSection>
         )}
+        
+        <AnimatedSection>
+          <HomeNewsSection posts={newsPosts} />
+        </AnimatedSection>
         
         <AnimatedSection>
           <HomeNotificationsSection

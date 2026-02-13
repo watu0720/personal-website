@@ -84,11 +84,11 @@ export function HomeNotificationsSection({ items, youtubeVideosUrl, niconicoVide
               <div 
                 key={`${n.source}-${n.date}-${i}`} 
                 data-stagger-item 
-                className="group relative overflow-hidden rounded-2xl border bg-gradient-to-br from-card to-card/80 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/20"
+                className="group relative overflow-hidden rounded-2xl border bg-gradient-to-br from-card to-card/80 p-5 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/20"
               >
                 {/* 背景装飾 */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-accent/3 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                <div className="absolute -top-8 -right-8 h-16 w-16 rounded-full bg-primary/5 blur-xl transition-all duration-300 group-hover:bg-primary/10" />
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <div className="absolute -top-10 -right-10 h-20 w-20 rounded-full bg-primary/10 blur-2xl transition-all duration-300 group-hover:bg-primary/20" />
                 
                 <div className="relative z-10">
                   {n.isExternal ? (
@@ -96,19 +96,19 @@ export function HomeNotificationsSection({ items, youtubeVideosUrl, niconicoVide
                       href={n.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block transition-all duration-200 hover:translate-y-[-1px]"
+                      className="block"
                     >
                       {content}
                     </a>
                   ) : (
-                    <Link href={n.href} className="block transition-all duration-200 hover:translate-y-[-1px]">
+                    <Link href={n.href} className="block">
                       {content}
                     </Link>
                   )}
                 </div>
                 
                 {/* ホバー時のボーダーグロー効果 */}
-                <div className="absolute inset-0 rounded-2xl border border-primary/0 transition-all duration-300 group-hover:border-primary/20" />
+                <div className="absolute inset-0 rounded-2xl border border-primary/0 transition-all duration-300 group-hover:border-primary/30" />
               </div>
             );
           })}

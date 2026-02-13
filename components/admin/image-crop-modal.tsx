@@ -4,12 +4,12 @@ import { useState, useCallback } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 import { getCroppedImageBlob, type PixelCrop } from "@/lib/crop-image";
 
-type CropType = "profile" | "header";
+type CropType = "profile" | "header" | "thumbnail";
 
 type Props = {
   open: boolean;
   imageSrc: string;
-  cropType: CropType;
+  cropType: CropType | "thumbnail";
   onConfirm: (blob: Blob) => void;
   onCancel: () => void;
 };
@@ -26,7 +26,8 @@ export function ImageCropModal({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<PixelCrop | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const aspect = cropType === "profile" ? 1 : 21 / 9;
+  const aspect =
+    cropType === "profile" ? 1 : cropType === "thumbnail" ? 16 / 9 : 21 / 9;
 
   const onCropComplete = useCallback(
     (_croppedArea: Area, croppedAreaPx: Area) => {

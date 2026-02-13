@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, FileText, Image, MessageSquare, Flag, ScrollText, BarChart3, ListTodo, HardDrive, ExternalLink, Key, Menu, X } from "lucide-react";
+import { LayoutDashboard, FileText, Image, MessageSquare, Flag, ScrollText, BarChart3, ListTodo, HardDrive, ExternalLink, Key, Menu, X, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { label: "ダッシュボード", href: "", icon: LayoutDashboard },
   { label: "訪問者統計", href: "/stats", icon: BarChart3 },
   { label: "ページ編集", href: "/page-contents", icon: FileText },
+  { label: "お知らせ管理", href: "/news", icon: Newspaper },
   { label: "画像管理", href: "/images", icon: Image },
   { label: "コメント管理", href: "/comments", icon: MessageSquare },
   { label: "通報管理", href: "/reports", icon: Flag },

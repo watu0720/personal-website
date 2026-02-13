@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
-const BUCKET = "public-assets";
+const BUCKETS = ["public-assets"] as const; // newsはpublic-assetsバケット内のフォルダ
 
 const BodySchema = z.object({
   deleteOrphans: z.array(z.string().min(1)).optional(),
@@ -40,10 +40,14 @@ export async function POST(req: NextRequest) {
   };
 
   if (deleteOrphans && deleteOrphans.length > 0) {
-    for (const path of deleteOrphans) {
-      const { error } = await admin.storage.from(BUCKET).remove([path]);
+    for (const pathWithBucket of deleteOrphans) {
+      const [bucket, ...pathParts] = pathWithBucket.split(":");
+      const path = pathParts.join(":");
+      // newsフォルダもpublic-assetsバケット内にあるため、すべてpublic-assetsを使用
+      const targetBucket = "public-assets";
+      const { error } = await admin.storage.from(targetBucket).remove([path]);
       if (error) {
-        results.errors.push(`Storage ${path}: ${error.message}`);
+        results.errors.push(`Storage ${pathWithBucket}: ${error.message}`);
       } else {
         results.orphansDeleted += 1;
       }

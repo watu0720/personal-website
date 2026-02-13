@@ -4,7 +4,7 @@ setup:
 	pnpm install
 
 dev:
-	@powershell -Command "& { $$Host.UI.RawUI.KeyAvailable = $$false; pnpm run dev }"
+	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1
 
 lint:
 	pnpm run lint

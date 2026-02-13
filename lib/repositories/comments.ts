@@ -42,8 +42,16 @@ export type CommentReplyWithCounts = CommentReplyRow & {
 };
 
 const PAGE_KEYS = ["home", "profile", "youtube", "niconico", "dev"] as const;
-export function isValidPageKey(key: string): key is (typeof PAGE_KEYS)[number] {
-  return PAGE_KEYS.includes(key as (typeof PAGE_KEYS)[number]);
+export function isValidPageKey(key: string): boolean {
+  // 固定のページキーをチェック
+  if (PAGE_KEYS.includes(key as (typeof PAGE_KEYS)[number])) {
+    return true;
+  }
+  // news:<id>形式を許可（例: news:123e4567-e89b-12d3-a456-426614174000）
+  if (key.startsWith("news:") && key.length > 5) {
+    return true;
+  }
+  return false;
 }
 
 /** Check body contains only allowed links (http/https) and limit count. */

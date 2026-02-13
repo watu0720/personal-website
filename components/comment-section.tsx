@@ -40,7 +40,7 @@ function setStoredEditToken(commentId: string, token: string): void {
 }
 
 const PAGE_KEYS = ["home", "profile", "youtube", "niconico", "dev"] as const;
-type PageKey = (typeof PAGE_KEYS)[number];
+type PageKey = (typeof PAGE_KEYS)[number] | string; // news:<id>形式も許可
 
 type CommentItem = {
   id: string;

@@ -47,16 +47,16 @@ export function HomeExternalLinks({ youtubeUrl, niconicoUrl, githubUrl, showIcon
             href={link.url!}
             target="_blank"
             rel="noopener noreferrer"
-            className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br from-card to-card/80 p-6 transition-all duration-300 hover:shadow-xl ${link.hoverShadow} hover:border-primary/20 hover:scale-105`}
+            className="group relative overflow-hidden rounded-2xl border bg-gradient-to-br from-card to-card/80 p-6 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/20"
           >
             {/* 背景装飾 */}
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-accent/3 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-            <div className="absolute -top-8 -right-8 h-16 w-16 rounded-full bg-primary/5 blur-xl transition-all duration-300 group-hover:bg-primary/10" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            <div className="absolute -top-10 -right-10 h-20 w-20 rounded-full bg-primary/10 blur-2xl transition-all duration-300 group-hover:bg-primary/20" />
             
             <div className="relative z-10 flex items-center gap-4">
               {showIcons && (
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all duration-300 group-hover:scale-110">
-                  <ServiceIcon type={link.icon} size={24} className="h-6 w-6" />
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted transition-all duration-300 group-hover:bg-primary/10 group-hover:scale-110">
+                  <ServiceIcon type={link.icon} size={24} className="h-6 w-6 transition-transform duration-300 group-hover:scale-110" />
                 </div>
               )}
               
@@ -64,7 +64,7 @@ export function HomeExternalLinks({ youtubeUrl, niconicoUrl, githubUrl, showIcon
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   {link.label}
                   <svg 
-                    className="h-4 w-4 text-muted-foreground transition-all duration-300 group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-primary" 
+                    className="h-4 w-4 text-muted-foreground transition-all duration-300 group-hover:translate-x-1 group-hover:text-primary" 
                     fill="none" 
                     stroke="currentColor" 
                     viewBox="0 0 24 24"
