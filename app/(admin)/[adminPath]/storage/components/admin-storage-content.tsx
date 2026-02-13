@@ -81,7 +81,7 @@ export function AdminStorageContent() {
               type="date"
               value={auditBefore}
               onChange={(e) => setAuditBefore(e.target.value)}
-              className="ml-2 w-full rounded border bg-background px-2 py-1 text-xs md:w-auto md:text-sm"
+              className="ml-2 w-full rounded border bg-background px-2 py-1 text-xs w-auto md:text-sm"
             />
           </label>
           <button

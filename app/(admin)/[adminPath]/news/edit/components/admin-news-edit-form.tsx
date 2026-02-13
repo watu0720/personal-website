@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { ArrowLeft, Upload, X, Calendar, Tag } from "lucide-react";
@@ -12,6 +11,12 @@ import { NewsBody } from "@/components/news-body";
 const ImageCropModal = dynamic(
   () =>
     import("@/components/admin/image-crop-modal").then((m) => m.ImageCropModal),
+  { ssr: false }
+);
+
+// TinyMCEのHydrationエラーを防ぐため、SSRを無効化
+const RichTextEditor = dynamic(
+  () => import("@/components/admin/rich-text-editor").then((m) => m.RichTextEditor),
   { ssr: false }
 );
 

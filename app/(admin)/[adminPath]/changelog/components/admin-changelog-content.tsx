@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RichTextEditor } from "@/components/admin/rich-text-editor";
+import dynamic from "next/dynamic";
+import { Edit2 } from "lucide-react";
+
+// TinyMCEのHydrationエラーを防ぐため、SSRを無効化
+const RichTextEditor = dynamic(
+  () => import("@/components/admin/rich-text-editor").then((m) => m.RichTextEditor),
+  { ssr: false }
+);
 
 type ChangelogRow = {
   id: string;
@@ -16,6 +23,9 @@ export function AdminChangelogContent() {
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
   const [bodyHtml, setBodyHtml] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [editingBodyHtml, setEditingBodyHtml] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
 
@@ -62,6 +72,52 @@ export function AdminChangelogContent() {
     }
   }
 
+  function startEdit(row: ChangelogRow) {
+    setEditingId(row.id);
+    setEditingTitle(row.title);
+    setEditingBodyHtml(row.body_html);
+    setMessage(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditingTitle("");
+    setEditingBodyHtml("");
+    setMessage(null);
+  }
+
+  async function handleUpdate() {
+    if (!editingId) return;
+    const t = editingTitle.trim();
+    if (!t || !editingBodyHtml.trim()) {
+      setMessage({ type: "error", text: "タイトルと本文を入力してください。" });
+      return;
+    }
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/admin/changelog/${editingId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: t, body_html: editingBodyHtml }),
+      });
+      const out = await res.json();
+      if (!res.ok) {
+        setMessage({ type: "error", text: out?.error ?? "更新に失敗しました。" });
+        return;
+      }
+      setMessage({ type: "ok", text: "更新しました。" });
+      setEditingId(null);
+      setEditingTitle("");
+      setEditingBodyHtml("");
+      fetchList();
+    } catch {
+      setMessage({ type: "error", text: "更新に失敗しました。" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!confirm("この改訂履歴を削除しますか？")) return;
     const res = await fetch(`/api/admin/changelog/${id}`, { method: "DELETE" });
@@ -79,32 +135,57 @@ export function AdminChangelogContent() {
   return (
     <>
       <div className="mb-6 rounded-xl border bg-card p-3 md:mb-8 md:p-4">
-        <h2 className="mb-3 text-base font-semibold text-foreground md:text-lg">新規追加</h2>
+        <h2 className="mb-3 text-base font-semibold text-foreground md:text-lg">
+          {editingId ? "編集" : "新規追加"}
+        </h2>
         <input
           type="text"
           placeholder="タイトル"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          value={editingId ? editingTitle : title}
+          onChange={(e) => (editingId ? setEditingTitle(e.target.value) : setTitle(e.target.value))}
           className="mb-3 w-full rounded-lg border bg-background px-3 py-2 text-xs text-foreground md:text-sm"
         />
         <RichTextEditor
           apiKey={process.env.NEXT_PUBLIC_TINYMCE_API_KEY ?? ""}
-          value={bodyHtml}
-          onChange={setBodyHtml}
+          value={editingId ? editingBodyHtml : bodyHtml}
+          onChange={editingId ? setEditingBodyHtml : setBodyHtml}
         />
         {message && (
           <p className={`mt-2 text-xs md:text-sm ${message.type === "ok" ? "text-green-600" : "text-destructive"}`}>
             {message.text}
           </p>
         )}
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={saving}
-          className="mt-3 w-full rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground disabled:opacity-50 md:w-auto md:text-sm"
-        >
-          {saving ? "追加中..." : "追加"}
-        </button>
+        <div className="mt-3 flex gap-2">
+          {editingId ? (
+            <>
+              <button
+                type="button"
+                onClick={handleUpdate}
+                disabled={saving}
+                className="rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground disabled:opacity-50 md:text-sm"
+              >
+                {saving ? "更新中..." : "更新"}
+              </button>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                disabled={saving}
+                className="rounded-lg border border-input bg-background px-4 py-2 text-xs md:text-sm"
+              >
+                キャンセル
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={saving}
+              className="w-full rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground disabled:opacity-50 md:w-auto md:text-sm"
+            >
+              {saving ? "追加中..." : "追加"}
+            </button>
+          )}
+        </div>
       </div>
 
       <h2 className="mb-3 text-base font-semibold text-foreground md:text-lg">一覧</h2>
@@ -120,13 +201,26 @@ export function AdminChangelogContent() {
                 <span className="text-sm font-medium text-foreground md:text-base">{row.title}</span>
                 <span className="ml-2 text-[10px] text-muted-foreground md:text-xs">{formatDate(row.published_at)}</span>
               </div>
-              <button
-                type="button"
-                onClick={() => handleDelete(row.id)}
-                className="w-full rounded border border-destructive/50 px-3 py-1 text-xs text-destructive hover:bg-destructive/10 md:w-auto md:text-sm"
-              >
-                削除
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => startEdit(row)}
+                  disabled={editingId !== null}
+                  className="flex items-center gap-1 rounded border border-input bg-background px-3 py-1 text-xs hover:bg-muted disabled:opacity-50 md:text-sm"
+                  title="編集"
+                >
+                  <Edit2 className="h-3 w-3 md:h-4 md:w-4" />
+                  編集
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(row.id)}
+                  disabled={editingId !== null}
+                  className="rounded border border-destructive/50 px-3 py-1 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50 md:text-sm"
+                >
+                  削除
+                </button>
+              </div>
             </li>
           ))}
         </ul>

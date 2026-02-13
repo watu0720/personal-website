@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RichTextEditor } from "@/components/admin/rich-text-editor";
+import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
+
+// TinyMCEのHydrationエラーを防ぐため、SSRを無効化
+const RichTextEditor = dynamic(
+  () => import("@/components/admin/rich-text-editor").then((m) => m.RichTextEditor),
+  { ssr: false }
+);
 
 const PAGES = [
   { key: "home", label: "ホーム" },
